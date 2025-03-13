@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DREAM IT - Control por Giro y Archivo MIDI</title>
   <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
-  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
-  <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
-  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
-  <!-- Nuevo: Soundfont Player -->
-  <script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@2" defer></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js" defer></script>
+  <!-- Script de Soundfont Player con defer -->
+  <script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.js" defer></script>
   <style>
     body {
       background-color: lightblue;
@@ -205,20 +205,32 @@
       
       // CARGA DEL INSTRUMENTO DE PIANO CON SOUNDFONT-PLAYER
       var pianoInstrument = null;
-      Soundfont.instrument(audioContext, 'acoustic_grand_piano').then(function(piano) {
-        pianoInstrument = piano;
-        console.log("Instrumento de piano cargado.");
-      });
+      
+      // Espera a que el script de Soundfont esté cargado. Verifica qué objeto existe:
+      console.log("Soundfont:", window.Soundfont);
+      console.log("SoundfontPlayer:", window.SoundfontPlayer);
+      
+      var sfObject = window.SoundfontPlayer || window.Soundfont;
+      if(sfObject && typeof sfObject.instrument === 'function') {
+        sfObject.instrument(audioContext, 'acoustic_grand_piano').then(function(piano) {
+          pianoInstrument = piano;
+          console.log("Instrumento de piano cargado.");
+        }).catch(function(error) {
+          console.error("Error al cargar el instrumento:", error);
+        });
+      } else {
+        console.error("No se encontró el método instrument en SoundfontPlayer o Soundfont.");
+      }
       
       // VARIABLES AJUSTABLES PARA EL CONTROL POR GIRO
       var gyroThreshold = 300;       // Umbral en grados/segundo para detectar un giro válido.
       var gyroMinInterval = 150;      // Intervalo mínimo entre disparos (ms).
-      var gyroMax = 200;            // Valor máximo para mapear a volumen 1.0.
+      var gyroMax = 200;             // Valor máximo para mapear a volumen 1.0.
       
       // VARIABLES PARA LAS NOTAS
-      var noteDuration = 1;         // Duración de la nota en segundos.
-      var defaultMidiNote = 60;     // Nota por defecto: C4
-      var groupThreshold = 0.001;   // Tolerancia para agrupar eventos "noteOn" que sean simultáneos.
+      var noteDuration = 1;          // Duración de la nota en segundos.
+      var defaultMidiNote = 60;      // Nota por defecto: C4
+      var groupThreshold = 0.001;    // Tolerancia para agrupar eventos "noteOn" que sean simultáneos.
       
       // Control de disparo
       var lastGyroNoteTime = 0;
@@ -243,7 +255,7 @@
       }
       
       // --- CARGA DEL ARCHIVO MIDI ---
-      // Se permite cargar el archivo MIDI mediante el input o los botones predefinidos.
+      // Permite cargar el archivo MIDI mediante el input o los botones predefinidos.
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
