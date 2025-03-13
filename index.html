@@ -311,7 +311,7 @@
       // Y solo se dispara cuando se pasa de un estado neutro (|beta| < betaReset) a un movimiento.
       var betaThreshold = 20;  // Umbral para detectar un golpe (en grados)
       var betaReset = 15;      // Valor por debajo del cual se considera que el movimiento volvió a neutral
-      var gyroMinInterval = 200; // Intervalo mínimo entre disparos (ms)
+      var gyroMinInterval = 20; // Intervalo mínimo entre disparos (ms)
       var lastGyroNoteTime = 0;
       
       function handleMotion(event) {
