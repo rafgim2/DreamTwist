@@ -190,7 +190,7 @@
       var currentNoteIndex = 0; // Índice para reproducir la secuencia
       
       // Variable para controlar la detección de dirección
-      // 1 = movimiento hacia abajo, -1 = movimiento hacia arriba, 0 = sin movimiento significativo
+      // 1 = movimiento hacia abajo, -1 = movimiento hacia arriba, 0 = sin movimiento significativo (neutral)
       var lastTriggeredDirection = 0;
       
       // Canvas (parte visual)
@@ -312,11 +312,9 @@
       }
       
       // --- CONTROL POR GIROSCOPO (USANDO BETA PARA GOLPES ARRIBA/ABAJO) ---
-      // Usamos el valor de "beta" para detectar el movimiento hacia arriba o hacia abajo.
-      // Se dispara la nota solo cuando se detecta un cambio desde estado neutro (0) a una dirección.
-      var betaThreshold = 30;       // Umbral para detectar movimiento en beta (en grados/segundo)
-      var gyroMinInterval = 100;    // Intervalo mínimo entre disparos (ms)
-      var lastGyroNoteTime = 0;
+      // Definimos un umbral para beta y un umbral de reinicio (cuando el movimiento se reduce a casi 0)
+      var betaThreshold = 30;  // Umbral para detectar un golpe (en grados/segundo)
+      var betaReset = 10;      // Valor por debajo del cual se considera "neutral"
       
       function handleMotion(event) {
         var rotation = event.rotationRate;
@@ -326,12 +324,13 @@
           var now = Date.now();
           var currentDirection = 0;
           if (beta > betaThreshold) {
-            currentDirection = 1;  // movimiento hacia abajo
+            currentDirection = 1;  // golpe hacia abajo
           } else if (beta < -betaThreshold) {
-            currentDirection = -1; // movimiento hacia arriba
+            currentDirection = -1; // golpe hacia arriba
           }
-          // Solo dispara si se detecta un cambio desde neutro
-          if (currentDirection !== 0 && lastTriggeredDirection === 0 && (now - lastGyroNoteTime) > gyroMinInterval) {
+          
+          // Si se detecta movimiento en alguna dirección y aún no se ha disparado (estado neutral)
+          if (currentDirection !== 0 && lastTriggeredDirection === 0) {
             var volume = Math.min(1.0, Math.abs(beta) / 200); // Intensidad basada en beta
             if (notesToPlay.length > 0) {
               if (currentNoteIndex >= notesToPlay.length) {
@@ -347,9 +346,8 @@
               console.log("Reproduciendo nota por defecto (C4) dirección:", currentDirection);
             }
             lastTriggeredDirection = currentDirection;
-            lastGyroNoteTime = now;
-          } else if (currentDirection === 0) {
-            // Cuando no hay movimiento significativo, reiniciamos para permitir el próximo disparo
+          } else if (Math.abs(beta) < betaReset) {
+            // Cuando el movimiento se reduce a casi 0, reiniciamos para permitir el próximo disparo
             lastTriggeredDirection = 0;
           }
         }
