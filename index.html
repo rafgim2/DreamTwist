@@ -313,7 +313,7 @@
       
       // --- CONTROL POR GIROSCOPO (USANDO BETA PARA GOLPES ARRIBA/ABAJO) ---
       // Definimos un umbral para beta y un umbral de reinicio (cuando el movimiento se reduce a casi 0)
-      var betaThreshold = 30;  // Umbral para detectar un golpe (en grados/segundo)
+      var betaThreshold = 60;  // Umbral para detectar un golpe (en grados/segundo)
       var betaReset = 0;      // Valor por debajo del cual se considera "neutral"
       
       function handleMotion(event) {
