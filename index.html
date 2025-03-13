@@ -187,7 +187,7 @@
     document.addEventListener('DOMContentLoaded', function () {
       // VARIABLES PARA LAS NOTAS MIDI
       var notesToPlay = [];  // Array con las notas extraídas del archivo MIDI
-      var currentNoteIndex = 0; // Índice de la siguiente nota a reproducir
+      var currentNoteIndex = 0; // Índice de la siguiente nota o grupo de notas a reproducir
       
       // VARIABLES DEL CANVAS (interfaz visual)
       var canvas = document.getElementById('pianoRollCanvas');
@@ -202,15 +202,16 @@
       var audioContext = new (window.AudioContext || window.webkitAudioContext)();
       
       // VARIABLES AJUSTABLES PARA EL CONTROL POR GIRO
-      var gyroThreshold = 300;       // Umbral en grados/segundo para detectar un giro válido
-      var gyroMinInterval = 150;      // Intervalo mínimo entre disparos (ms)
-      var gyroMax = 200;            // Valor máximo para mapear a un volumen máximo de 1.0
+      var gyroThreshold = 300;       // Umbral en grados/segundo para detectar un giro válido.
+      var gyroMinInterval = 150;      // Intervalo mínimo entre disparos (ms).
+      var gyroMax = 200;            // Valor máximo para mapear a volumen 1.0.
       
-      // Otras variables ajustables:
-      var noteDuration = 1;         // Duración de la nota (en segundos)
-      var defaultFrequency = 261.63;  // Frecuencia por defecto (C4), se usa si no hay archivo MIDI
+      // VARIABLES PARA LAS NOTAS
+      var noteDuration = 1;         // Duración de la nota en segundos.
+      var defaultFrequency = 261.63;  // Frecuencia por defecto (C4) si no hay archivo MIDI.
+      var groupThreshold = 0.001;   // Tolerancia para agrupar eventos "noteOn" que sean simultáneos.
       
-      // Para controlar disparos de nota
+      // Control de disparo
       var lastGyroNoteTime = 0;
       
       // Función para convertir un número MIDI a frecuencia (Hz)
@@ -222,10 +223,10 @@
       function playSynthPianoNote(volume, frequency) {
         var now = audioContext.currentTime;
         var oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine';  // Onda senoidal (puedes probar 'triangle')
+        oscillator.type = 'sine';  // Puedes probar 'triangle' para otro timbre.
         oscillator.frequency.value = frequency || defaultFrequency;
         var gainNode = audioContext.createGain();
-        // Configurar la envolvente: ataque muy rápido y decaimiento exponencial
+        // Envolvente: ataque muy rápido y decaimiento exponencial.
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + noteDuration);
@@ -235,13 +236,13 @@
         console.log("Nota disparada: frecuencia =", frequency, "volumen =", volume);
       }
       
-      // Función para reproducir la nota de piano (usando síntesis básica)
+      // Función para reproducir la nota de piano usando síntesis básica.
       function playPianoNote(volume, frequency) {
         playSynthPianoNote(volume, frequency);
       }
       
       // --- CARGA DEL ARCHIVO MIDI ---
-      // Permite cargar un archivo MIDI mediante el input o mediante los botones predefinidos.
+      // Se permite cargar el archivo MIDI mediante el input o los botones predefinidos.
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
@@ -276,7 +277,7 @@
           .catch(error => console.error(`Error fetching ${fileName}:`, error));
       }
       
-      // Botones predefinidos para cargar archivos MIDI
+      // Botones predefinidos para cargar archivos MIDI.
       document.getElementById('useBmidButton').addEventListener('click', function() {
         selectButton('useBmidButton');
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/7.mid', 'Preludio nº1 (Bach).mid');
@@ -287,7 +288,7 @@
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
       });
       
-      // Función para extraer los eventos "noteOn" del archivo MIDI y almacenarlos en notesToPlay
+      // Función para extraer los eventos "noteOn" del archivo MIDI y almacenarlos en notesToPlay.
       function extractNotesFromMidi(midi) {
         notesToPlay = [];
         currentNoteIndex = 0;
@@ -298,7 +299,6 @@
             if (event.deltaTime) {
               absoluteTime += event.deltaTime;
             }
-            // Se almacenan todos los eventos noteOn (como en el código original)
             if (event.subtype === 'noteOn') {
               notesToPlay.push({
                 noteNumber: event.noteNumber,
@@ -313,7 +313,7 @@
         console.log("Notas MIDI extraídas:", notesToPlay);
       }
       
-      // Función para cambiar el estilo de un botón (feedback visual)
+      // Función para cambiar el estilo de un botón (feedback visual).
       function selectButton(buttonId) {
         document.querySelectorAll('.button').forEach(button => {
           button.classList.remove('selected');
@@ -322,7 +322,7 @@
       }
       
       // --- CONTROL POR GIRO (Devicemotion) ---
-      // Cada vez que se detecta un giro de muñeca que supere el umbral, se dispara la siguiente nota.
+      // Cada vez que se detecta un giro válido, se reproduce el grupo de notas que tengan el mismo tiempo.
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('devicemotion event:', rotation);
@@ -335,16 +335,22 @@
           if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
             var volume = Math.min(1.0, magnitude / gyroMax);
             if (notesToPlay.length > 0) {
-              if (currentNoteIndex >= notesToPlay.length) {
-                currentNoteIndex = 0; // Reinicia la secuencia si llegamos al final
+              // Agrupar todas las notas con tiempo similar (dentro de groupThreshold)
+              var groupEnd = currentNoteIndex + 1;
+              while (groupEnd < notesToPlay.length &&
+                     Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
+                groupEnd++;
               }
-              var note = notesToPlay[currentNoteIndex];
-              var frequency = midiToFrequency(note.noteNumber);
-              playPianoNote(volume, frequency);
-              console.log("Reproduciendo nota MIDI:", note.noteNumber, "frecuencia:", frequency);
-              currentNoteIndex++;
+              // Reproducir todas las notas del grupo simultáneamente
+              for (var i = currentNoteIndex; i < groupEnd; i++) {
+                var note = notesToPlay[i];
+                var frequency = midiToFrequency(note.noteNumber);
+                playPianoNote(volume, frequency);
+                console.log("Reproduciendo nota MIDI:", note.noteNumber, "frecuencia:", frequency);
+              }
+              currentNoteIndex = groupEnd;
             } else {
-              // Si no hay archivo MIDI cargado, se reproduce la nota por defecto (defaultFrequency)
+              // Si no hay archivo MIDI cargado, reproducir la nota por defecto (defaultFrequency)
               playPianoNote(volume, defaultFrequency);
               console.log("Reproduciendo nota por defecto:", defaultFrequency);
             }
@@ -359,7 +365,7 @@
         console.log("DeviceMotionEvent no es soportado en este dispositivo.");
       }
       
-      // Reanudar el AudioContext tras la interacción del usuario (importante en móviles)
+      // Reanudar el AudioContext tras la interacción del usuario (importante en móviles).
       document.addEventListener('click', function() {
         if (audioContext.state === 'suspended') {
           audioContext.resume().then(() => {
@@ -368,7 +374,7 @@
         }
       });
       
-      // Botón de prueba para disparar manualmente una nota (C4, volumen 0.5)
+      // Botón de prueba para disparar manualmente una nota (C4, volumen 0.5).
       document.getElementById('testButton').addEventListener('click', function() {
         playPianoNote(0.5, defaultFrequency);
       });
