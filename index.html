@@ -337,7 +337,7 @@
           var magnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
           var now = Date.now();
           if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-            var volume = Math.min(1.0, (magnitude / gyroMax) * 0.50);
+            var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
 
             if (notesToPlay.length > 0) {
               var groupEnd = currentNoteIndex + 1;
