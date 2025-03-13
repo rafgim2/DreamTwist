@@ -186,6 +186,17 @@
   </div>
   
   <script>
+    // Función para convertir ArrayBuffer a cadena binaria.
+    function arrayBufferToBinaryString(buffer) {
+      var binary = '';
+      var bytes = new Uint8Array(buffer);
+      var len = bytes.byteLength;
+      for (var i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return binary;
+    }
+    
     document.addEventListener('DOMContentLoaded', function () {
       // VARIABLES PARA LAS NOTAS MIDI
       var notesToPlay = [];  // Array con las notas extraídas del archivo MIDI
@@ -252,13 +263,14 @@
         var reader = new FileReader();
         reader.onload = function(e) {
           try {
-            var midi = new MidiFile(e.target.result);
+            var binaryString = arrayBufferToBinaryString(e.target.result);
+            var midi = new MidiFile(binaryString);
             extractNotesFromMidi(midi);
           } catch (error) {
             console.error("Error al parsear el archivo MIDI:", error);
           }
         };
-        reader.readAsBinaryString(e.target.files[0]);
+        reader.readAsArrayBuffer(e.target.files[0]);
         document.getElementById('fileName').textContent = e.target.files[0].name;
       });
       
@@ -269,13 +281,14 @@
             var reader = new FileReader();
             reader.onload = function(e) {
               try {
-                var midi = new MidiFile(e.target.result);
+                var binaryString = arrayBufferToBinaryString(e.target.result);
+                var midi = new MidiFile(binaryString);
                 extractNotesFromMidi(midi);
               } catch (error) {
                 console.error("Error al parsear el archivo MIDI:", error);
               }
             };
-            reader.readAsBinaryString(new Blob([data]));
+            reader.readAsArrayBuffer(new Blob([data]));
             document.getElementById('fileName').textContent = fileName;
           })
           .catch(error => console.error(`Error al obtener ${fileName}:`, error));
@@ -326,7 +339,6 @@
       }
       
       // --- CONTROL POR GIRO (Devicemotion) ---
-      // Cada vez que se detecta un giro válido, se reproducen las notas agrupadas (para que suenen juntas)
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('Evento devicemotion:', rotation);
@@ -345,7 +357,6 @@
                      Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
                 groupEnd++;
               }
-              // Reproducir todas las notas del grupo simultáneamente
               for (var i = currentNoteIndex; i < groupEnd; i++) {
                 var note = notesToPlay[i];
                 playPianoSampleFromMidi(note.noteNumber, volume);
@@ -353,7 +364,6 @@
               }
               currentNoteIndex = groupEnd;
             } else {
-              // Si no hay archivo MIDI cargado, reproducir la nota por defecto
               playPianoSampleFromMidi(defaultNoteNumber, volume);
               console.log("Reproduciendo nota por defecto:", defaultNoteNumber);
             }
@@ -382,7 +392,7 @@
         playPianoSampleFromMidi(defaultNoteNumber, 0.5);
       });
       
-      // --- EVENTOS DEL CANVAS (manteniendo parte de la interfaz original) ---
+      // --- EVENTOS DEL CANVAS (para mantener parte de la interfaz original) ---
       canvas.addEventListener('mousedown', function(e) {
         isDragging = true;
         lastMouseDownCoords = { x: e.clientX, y: e.clientY };
