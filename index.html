@@ -310,9 +310,9 @@
       // --- CONTROL POR GIROSCOPO ---
       // Se dispara la siguiente nota del archivo MIDI en cada movimiento que supere el umbral
       // Se han ajustado los parámetros para requerir mayor movimiento:
-      var gyroThreshold = 50;       // Aumentado de 30 a 50 grados/segundo
+      var gyroThreshold = 25;       // Aumentado de 30 a 50 grados/segundo
       var gyroMax = 200;            // Valor máximo para mapear a volumen 1.0
-      var gyroMinInterval = 50;    // Aumentado de 50 a 100 ms
+      var gyroMinInterval = 25;    // Aumentado de 50 a 100 ms
       var lastGyroNoteTime = 0;
       
       function handleMotion(event) {
