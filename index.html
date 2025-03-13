@@ -239,7 +239,7 @@
         });
       }
 
-      // --- Bloque original de WebMIDI (no se usará entrada MIDI) ---
+      // --- Bloque de WebMIDI (entrada MIDI se ignora) ---
       WebMidi.enable(function (err) {
         if (err) {
           console.error('Web MIDI is not enabled:', err);
@@ -252,10 +252,10 @@
         });
         WebMidi.inputs.forEach(function(input) {
           input.addListener('noteon', "all", function(e) {
-            // Se ignora la entrada MIDI
+            // Ignorar entrada MIDI
           });
           input.addListener('noteoff', "all", function(e) {
-            // Se ignora
+            // Ignorar
           });
           input.addListener('controlchange', "all", function(e) {
             if (e.controller.number === 64) {
@@ -458,63 +458,26 @@
 
       // --- BLOQUE NUEVO: Sintetizador de piano y control por giroscopio ---
       var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      var pianoBuffer = null;
-      var sampleLoaded = false;
       
-      // Función para cargar el sample de piano de alta calidad.
-      // He incluido un sample de ejemplo de dominio público (si no se carga, se usará síntesis básica)
-      function loadPianoSample(url) {
-        fetch(url)
-          .then(response => response.arrayBuffer())
-          .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-          .then(decodedData => {
-            pianoBuffer = decodedData;
-            sampleLoaded = true;
-          })
-          .catch(error => {
-            console.error('Error loading piano sample:', error);
-            sampleLoaded = false;
-          });
-      }
-      
-      // URL de sample de piano (puedes cambiarlo por otro de mayor calidad si lo deseas)
-      loadPianoSample('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/piano_sample.wav');
-
-      // Función para reproducir nota usando sample de piano
-      function playSampledPianoNote(volume) {
-        if (!pianoBuffer) return;
-        var source = audioContext.createBufferSource();
-        source.buffer = pianoBuffer;
-        var gainNode = audioContext.createGain();
-        gainNode.gain.value = volume;
-        source.connect(gainNode).connect(audioContext.destination);
-        source.start();
-      }
-      
-      // Función de fallback: reproducir nota usando síntesis básica (oscilador + envolvente)
+      // Función para reproducir nota usando síntesis básica: oscilador + envolvente
       function playSynthPianoNote(volume) {
         var now = audioContext.currentTime;
         var oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine'; // tipo de onda básica
-        // Frecuencia aproximada para la nota C4 (puedes ajustar o mapear a diferentes notas)
-        oscillator.frequency.value = 261.63;
+        oscillator.type = 'sine'; // Onda simple (puedes cambiar a 'triangle' para un timbre diferente)
+        oscillator.frequency.value = 261.63; // Frecuencia para la nota C4
         var gainNode = audioContext.createGain();
-        // Crear envolvente para simular un golpe de piano
-        gainNode.gain.setValueAtTime(0, now);
+        // Envolvente: ataque rápido y decaimiento exponencial
+        gainNode.gain.setValueAtTime(0.0001, now);
         gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 1);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1);
         oscillator.connect(gainNode).connect(audioContext.destination);
         oscillator.start(now);
         oscillator.stop(now + 1);
       }
       
-      // Función para reproducir la nota de piano, eligiendo la opción más realista disponible
+      // Función para reproducir la nota de piano (solo síntesis básica)
       function playPianoNote(volume) {
-        if (sampleLoaded && pianoBuffer) {
-          playSampledPianoNote(volume);
-        } else {
-          playSynthPianoNote(volume);
-        }
+        playSynthPianoNote(volume);
       }
 
       // Configuración para el control por giroscopio vía devicemotion
@@ -527,14 +490,14 @@
       function handleMotion(event) {
         var rotation = event.rotationRate;
         if (rotation) {
-          // Usamos alpha, beta y gamma para calcular la magnitud del giro
+          // Calcular magnitud usando alpha, beta y gamma
           var alpha = rotation.alpha || 0;
           var beta = rotation.beta || 0;
           var gamma = rotation.gamma || 0;
           var magnitude = Math.sqrt(alpha*alpha + beta*beta + gamma*gamma);
           var now = Date.now();
           if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-            // Mapear la magnitud al volumen (0.0 a 1.0)
+            // Mapear magnitud a volumen (0.0 a 1.0)
             var volume = Math.min(1.0, magnitude / gyroMax);
             playPianoNote(volume);
             lastGyroNoteTime = now;
@@ -547,6 +510,13 @@
       } else {
         console.log("DeviceMotionEvent not supported in this device.");
       }
+
+      // Para reanudar el AudioContext tras interacción del usuario
+      document.addEventListener('click', function() {
+        if (audioContext.state === 'suspended') {
+          audioContext.resume();
+        }
+      });
     });
   </script>
 </body>
