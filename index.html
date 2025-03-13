@@ -315,8 +315,8 @@
       // --- CONTROL POR GIROSCOPO (USANDO BETA para golpes ARRIBA/ABAJO) ---
       // Se dispara una nota al detectar un golpe hacia abajo (beta > betaThreshold) o hacia arriba (beta < -betaThreshold)
       // Solo se dispara si el estado es neutral, y se reinicia cuando beta cae por debajo de betaReset.
-      var betaThreshold = 30;  // Umbral para detectar un golpe (en grados)
-      var betaReset = 15;      // Valor de reinicio para considerar el movimiento neutral
+      var betaThreshold = 50;  // Umbral para detectar un golpe (en grados)
+      var betaReset = 25;      // Valor de reinicio para considerar el movimiento neutral
       var gyroMinInterval = 100; // Intervalo mínimo entre disparos (ms)
       var lastGyroNoteTime = 0;
       
