@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DREAM IT</title>
-  <!-- Se incluyen los scripts de WebMIDIAPIShim, WebMidi y Jasmid para la carga de archivos MIDI -->
+  <title>DREAM IT - Control por Giro y Archivo MIDI</title>
+  <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
   <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
@@ -31,7 +31,7 @@
       position: absolute;
       bottom: 30px;
       right: 25px;
-      width: 300px;
+      width:300px;
       opacity: 0.1;
       pointer-events: none;
     }
@@ -41,8 +41,7 @@
       align-items: center;
       margin-top: 20px;
     }
-    #fileInputContainer, #midiDeviceSelectContainer, #useBmidContainer, 
-    #useAmidContainer, #additionalButtonsContainer, #buyContainer {
+    #fileInputContainer, #midiDeviceSelectContainer, #useBmidContainer, #useAmidContainer, #additionalButtonsContainer, #buyContainer {
       width: fit-content;
       margin-top: 10px;
     }
@@ -186,15 +185,11 @@
   
   <script>
     document.addEventListener('DOMContentLoaded', function () {
-      // VARIABLES Y CONFIGURACIONES
-      var notesToPlay = [];  // Array para las notas extraídas del archivo MIDI
-      var currentNoteIndex = 0; // Índice para reproducir la secuencia
+      // VARIABLES PARA LAS NOTAS MIDI
+      var notesToPlay = [];  // Array con las notas extraídas del archivo MIDI
+      var currentNoteIndex = 0; // Índice de la siguiente nota a reproducir
       
-      // Variable para controlar la detección de dirección
-      // 1 = golpe hacia abajo, -1 = golpe hacia arriba, 0 = estado neutral
-      var lastTriggeredDirection = 0;
-      
-      // Canvas (parte visual)
+      // VARIABLES DEL CANVAS (interfaz visual)
       var canvas = document.getElementById('pianoRollCanvas');
       var ctx = canvas.getContext('2d');
       var lastMouseDownCoords = { x: 0, y: 0 };
@@ -203,8 +198,20 @@
       let scale = 8;
       let verticalScrollAmount = 20;
       
-      // Configuración del AudioContext y síntesis básica
+      // CONFIGURACIÓN DEL AUDIO
       var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // VARIABLES AJUSTABLES PARA EL CONTROL POR GIRO
+      var gyroThreshold = 50;       // Umbral en grados/segundo para detectar un giro válido
+      var gyroMinInterval = 100;      // Intervalo mínimo entre disparos (ms)
+      var gyroMax = 200;            // Valor máximo para mapear a un volumen máximo de 1.0
+      
+      // Otras variables ajustables:
+      var noteDuration = 1;         // Duración de la nota (en segundos)
+      var defaultFrequency = 261.63;  // Frecuencia por defecto (C4), se usa si no hay archivo MIDI
+      
+      // Para controlar disparos de nota
+      var lastGyroNoteTime = 0;
       
       // Función para convertir un número MIDI a frecuencia (Hz)
       function midiToFrequency(noteNumber) {
@@ -215,25 +222,26 @@
       function playSynthPianoNote(volume, frequency) {
         var now = audioContext.currentTime;
         var oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine';  // Onda senoidal (puedes cambiar a 'triangle')
-        oscillator.frequency.value = frequency || 261.63; // Por defecto C4
+        oscillator.type = 'sine';  // Onda senoidal (puedes probar 'triangle')
+        oscillator.frequency.value = frequency || defaultFrequency;
         var gainNode = audioContext.createGain();
-        // Envolvente: ataque rápido y decaimiento exponencial
-        gainNode.gain.setValueAtTime(0.0001, now);
+        // Configurar la envolvente: ataque muy rápido y decaimiento exponencial
+        gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + noteDuration);
         oscillator.connect(gainNode).connect(audioContext.destination);
         oscillator.start(now);
-        oscillator.stop(now + 1);
+        oscillator.stop(now + noteDuration);
         console.log("Nota disparada: frecuencia =", frequency, "volumen =", volume);
       }
       
-      // Función para reproducir la nota de piano usando síntesis básica
+      // Función para reproducir la nota de piano (usando síntesis básica)
       function playPianoNote(volume, frequency) {
         playSynthPianoNote(volume, frequency);
       }
       
       // --- CARGA DEL ARCHIVO MIDI ---
+      // Permite cargar un archivo MIDI mediante el input o mediante los botones predefinidos.
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
@@ -279,7 +287,7 @@
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
       });
       
-      // Función para extraer los eventos "noteOn" y almacenarlos en notesToPlay
+      // Función para extraer los eventos "noteOn" del archivo MIDI y almacenarlos en notesToPlay
       function extractNotesFromMidi(midi) {
         notesToPlay = [];
         currentNoteIndex = 0;
@@ -290,6 +298,7 @@
             if (event.deltaTime) {
               absoluteTime += event.deltaTime;
             }
+            // Se almacenan todos los eventos noteOn (como en el código original)
             if (event.subtype === 'noteOn') {
               notesToPlay.push({
                 noteNumber: event.noteNumber,
@@ -312,51 +321,34 @@
         document.getElementById(buttonId).classList.add('selected');
       }
       
-      // --- CONTROL POR GIROSCOPO (USANDO BETA para golpes ARRIBA/ABAJO) ---
-      // Se dispara una nota al detectar un golpe hacia abajo (beta > betaThreshold) o hacia arriba (beta < -betaThreshold)
-      // Solo se dispara si el estado es neutral, y se reinicia cuando beta cae por debajo de betaReset.
-      var betaThreshold = 50;  // Umbral para detectar un golpe (en grados)
-      var betaReset = 25;      // Valor de reinicio para considerar el movimiento neutral
-      var gyroMinInterval = 100; // Intervalo mínimo entre disparos (ms)
-      var lastGyroNoteTime = 0;
-      
+      // --- CONTROL POR GIRO (Devicemotion) ---
+      // Cada vez que se detecta un giro de muñeca que supere el umbral, se dispara la siguiente nota.
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('devicemotion event:', rotation);
         if (rotation) {
+          var alpha = rotation.alpha || 0;
           var beta = rotation.beta || 0;
+          var gamma = rotation.gamma || 0;
+          var magnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
           var now = Date.now();
-          var currentDirection = 0;
-          if (beta > betaThreshold) {
-            currentDirection = 1;  // golpe hacia abajo
-          } else if (beta < -betaThreshold) {
-            currentDirection = -1; // golpe hacia arriba
-          }
-          // Dispara la nota solo si estamos en estado neutral
-          if (currentDirection !== 0 && lastTriggeredDirection === 0 && (now - lastGyroNoteTime) > gyroMinInterval) {
-            var volume = Math.min(1.0, Math.abs(beta) / 100); // Sensibilidad del volumen
+          if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
+            var volume = Math.min(1.0, magnitude / gyroMax);
             if (notesToPlay.length > 0) {
               if (currentNoteIndex >= notesToPlay.length) {
-                currentNoteIndex = 0;  // Reinicia la secuencia
+                currentNoteIndex = 0; // Reinicia la secuencia si llegamos al final
               }
               var note = notesToPlay[currentNoteIndex];
               var frequency = midiToFrequency(note.noteNumber);
               playPianoNote(volume, frequency);
-              console.log("Reproduciendo nota MIDI:", note.noteNumber, "frecuencia:", frequency, "dirección:", currentDirection);
+              console.log("Reproduciendo nota MIDI:", note.noteNumber, "frecuencia:", frequency);
               currentNoteIndex++;
             } else {
-              playPianoNote(volume, 261.63);
-              console.log("Reproduciendo nota por defecto (C4) dirección:", currentDirection);
+              // Si no hay archivo MIDI cargado, se reproduce la nota por defecto (defaultFrequency)
+              playPianoNote(volume, defaultFrequency);
+              console.log("Reproduciendo nota por defecto:", defaultFrequency);
             }
-            lastTriggeredDirection = currentDirection;
             lastGyroNoteTime = now;
-            // Forzar reinicio de la dirección después de 200 ms, para permitir un nuevo disparo
-            setTimeout(function(){
-              lastTriggeredDirection = 0;
-            }, 200);
-          } else if (Math.abs(beta) < betaReset) {
-            // Cuando beta es bajo, se reinicia la dirección
-            lastTriggeredDirection = 0;
           }
         }
       }
@@ -378,12 +370,10 @@
       
       // Botón de prueba para disparar manualmente una nota (C4, volumen 0.5)
       document.getElementById('testButton').addEventListener('click', function() {
-        audioContext.resume().then(() => {
-          playPianoNote(0.5, 261.63);
-        });
+        playPianoNote(0.5, defaultFrequency);
       });
       
-      // --- EVENTOS DEL CANVAS (manteniendo parte de la interfaz original) ---
+      // --- EVENTOS DEL CANVAS (para mantener parte de la interfaz original) ---
       canvas.addEventListener('mousedown', function(e) {
         isDragging = true;
         lastMouseDownCoords = { x: e.clientX, y: e.clientY };
