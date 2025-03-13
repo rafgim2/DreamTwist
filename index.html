@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DREAM IT - Control por Giro y Archivo MIDI</title>
   <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
-  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/webmidi@2" defer></script>
-  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js" defer></script>
-  <!-- Script de Soundfont Player con defer -->
-  <script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
+  <!-- Se carga soundfont-player 0.7.0 SIN defer para que se ejecute inmediatamente -->
+  <script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.js"></script>
   <style>
     body {
       background-color: lightblue;
@@ -184,13 +184,14 @@
       </div>
     </div>
   </div>
-  
+
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    // Usamos window.onload para asegurarnos de que todos los scripts se hayan cargado
+    window.onload = function () {
       // VARIABLES PARA LAS NOTAS MIDI
       var notesToPlay = [];  // Array con las notas extraídas del archivo MIDI
       var currentNoteIndex = 0; // Índice de la siguiente nota o grupo de notas a reproducir
-      
+
       // VARIABLES DEL CANVAS (interfaz visual)
       var canvas = document.getElementById('pianoRollCanvas');
       var ctx = canvas.getContext('2d');
@@ -199,63 +200,57 @@
       var isDragging = false;
       let scale = 8;
       let verticalScrollAmount = 20;
-      
+
       // CONFIGURACIÓN DEL AUDIO
       var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // CARGA DEL INSTRUMENTO DE PIANO CON SOUNDFONT-PLAYER
+
+      // CARGA DEL INSTRUMENTO DE PIANO CON SOUNDFONT-PLAYER (versión 0.7.0)
       var pianoInstrument = null;
-      
-      // Espera a que el script de Soundfont esté cargado. Verifica qué objeto existe:
-      console.log("Soundfont:", window.Soundfont);
-      console.log("SoundfontPlayer:", window.SoundfontPlayer);
-      
-      var sfObject = window.SoundfontPlayer || window.Soundfont;
-      if(sfObject && typeof sfObject.instrument === 'function') {
-        sfObject.instrument(audioContext, 'acoustic_grand_piano').then(function(piano) {
-          pianoInstrument = piano;
-          console.log("Instrumento de piano cargado.");
-        }).catch(function(error) {
-          console.error("Error al cargar el instrumento:", error);
-        });
+      if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
+        window.Soundfont.instrument(audioContext, 'acoustic_grand_piano')
+          .then(function(piano) {
+            pianoInstrument = piano;
+            console.log("Instrumento de piano cargado.");
+          })
+          .catch(function(error) {
+            console.error("Error al cargar el instrumento:", error);
+          });
       } else {
-        console.error("No se encontró el método instrument en SoundfontPlayer o Soundfont.");
+        console.error("No se encontró el método instrument en Soundfont.");
       }
-      
+
       // VARIABLES AJUSTABLES PARA EL CONTROL POR GIRO
-      var gyroThreshold = 300;       // Umbral en grados/segundo para detectar un giro válido.
-      var gyroMinInterval = 150;      // Intervalo mínimo entre disparos (ms).
-      var gyroMax = 200;             // Valor máximo para mapear a volumen 1.0.
-      
+      var gyroThreshold = 300;    // Umbral en grados/segundo para detectar un giro válido.
+      var gyroMinInterval = 150;    // Intervalo mínimo entre disparos (ms).
+      var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0.
+
       // VARIABLES PARA LAS NOTAS
-      var noteDuration = 1;          // Duración de la nota en segundos.
-      var defaultMidiNote = 60;      // Nota por defecto: C4
-      var groupThreshold = 0.001;    // Tolerancia para agrupar eventos "noteOn" que sean simultáneos.
-      
+      var noteDuration = 1;       // Duración de la nota en segundos.
+      var defaultMidiNote = 60;   // Nota por defecto: C4
+      var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn" simultáneos.
+
       // Control de disparo
       var lastGyroNoteTime = 0;
-      
+
       // Función para convertir un número MIDI a notación (ej. "C4")
       function midiNoteToNoteName(midi) {
         var octave = Math.floor(midi / 12) - 1;
         var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
         return noteNames[midi % 12] + octave;
       }
-      
+
       // Función para reproducir nota de piano usando soundfont-player.
       function playPianoNote(volume, midiNote) {
         if (pianoInstrument) {
           var noteName = midiNoteToNoteName(midiNote);
-          // Reproduce la nota en el tiempo actual
           pianoInstrument.play(noteName, audioContext.currentTime, { gain: volume, duration: noteDuration });
           console.log("Nota reproducida:", noteName, "volumen:", volume);
         } else {
           console.warn("El instrumento aún no se ha cargado.");
         }
       }
-      
+
       // --- CARGA DEL ARCHIVO MIDI ---
-      // Permite cargar el archivo MIDI mediante el input o los botones predefinidos.
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
@@ -270,7 +265,7 @@
         reader.readAsBinaryString(e.target.files[0]);
         document.getElementById('fileName').textContent = e.target.files[0].name;
       });
-      
+
       function loadAndUseMidi(url, fileName) {
         fetch(url)
           .then(response => response.arrayBuffer())
@@ -289,19 +284,17 @@
           })
           .catch(error => console.error(`Error al cargar ${fileName}:`, error));
       }
-      
-      // Botones predefinidos para cargar archivos MIDI.
+
       document.getElementById('useBmidButton').addEventListener('click', function() {
         selectButton('useBmidButton');
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/7.mid', 'Preludio nº1 (Bach).mid');
       });
-      
+
       document.getElementById('useAmidButton').addEventListener('click', function() {
         selectButton('useAmidButton');
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
       });
-      
-      // Función para extraer los eventos "noteOn" del archivo MIDI y almacenarlos en notesToPlay.
+
       function extractNotesFromMidi(midi) {
         notesToPlay = [];
         currentNoteIndex = 0;
@@ -325,17 +318,15 @@
         notesToPlay.sort((a, b) => a.time - b.time);
         console.log("Notas MIDI extraídas:", notesToPlay);
       }
-      
-      // Función para cambiar el estilo de un botón (feedback visual).
+
       function selectButton(buttonId) {
         document.querySelectorAll('.button').forEach(button => {
           button.classList.remove('selected');
         });
         document.getElementById(buttonId).classList.add('selected');
       }
-      
+
       // --- CONTROL POR GIRO (Devicemotion) ---
-      // Cada vez que se detecta un giro válido, se reproduce el grupo de notas que tengan el mismo tiempo.
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('devicemotion event:', rotation);
@@ -348,13 +339,11 @@
           if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
             var volume = Math.min(1.0, magnitude / gyroMax);
             if (notesToPlay.length > 0) {
-              // Agrupar todas las notas con tiempo similar (dentro de groupThreshold)
               var groupEnd = currentNoteIndex + 1;
               while (groupEnd < notesToPlay.length &&
                      Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
                 groupEnd++;
               }
-              // Reproducir todas las notas del grupo simultáneamente
               for (var i = currentNoteIndex; i < groupEnd; i++) {
                 var note = notesToPlay[i];
                 playPianoNote(volume, note.noteNumber);
@@ -362,7 +351,6 @@
               }
               currentNoteIndex = groupEnd;
             } else {
-              // Si no hay archivo MIDI cargado, reproducir la nota por defecto (C4)
               playPianoNote(volume, defaultMidiNote);
               console.log("Reproduciendo nota por defecto:", defaultMidiNote);
             }
@@ -370,14 +358,14 @@
           }
         }
       }
-      
+
       if (window.DeviceMotionEvent) {
         window.addEventListener('devicemotion', handleMotion);
       } else {
         console.log("DeviceMotionEvent no es soportado en este dispositivo.");
       }
-      
-      // Reanudar el AudioContext tras la interacción del usuario (importante en móviles).
+
+      // Reanudar el AudioContext tras una interacción del usuario
       document.addEventListener('click', function() {
         if (audioContext.state === 'suspended') {
           audioContext.resume().then(() => {
@@ -385,23 +373,21 @@
           });
         }
       });
-      
-      // Botón de prueba para disparar manualmente una nota (C4, volumen 0.5).
+
       document.getElementById('testButton').addEventListener('click', function() {
         playPianoNote(0.5, defaultMidiNote);
       });
-      
-      // --- EVENTOS DEL CANVAS (para mantener parte de la interfaz original) ---
+
       canvas.addEventListener('mousedown', function(e) {
         isDragging = true;
         lastMouseDownCoords = { x: e.clientX, y: e.clientY };
         lastCanvasOffset = { x: 0, y: 0 };
       });
-      
+
       document.addEventListener('mouseup', function() {
         isDragging = false;
       });
-      
+
       document.addEventListener('mousemove', function(e) {
         if (isDragging) {
           var offsetX = e.clientX - lastMouseDownCoords.x;
@@ -410,8 +396,7 @@
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
       });
-      
-    });
+    };
   </script>
 </body>
 </html>
