@@ -119,7 +119,7 @@
       display: flex;
       justify-content: center;
     }
-    /* Botón de prueba para disparar manualmente */
+    /* Botón para probar manualmente el sonido */
     #testButton {
       margin-top: 15px;
       background-color: darkorange;
@@ -186,8 +186,8 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // VARIABLES Y CONFIGURACIONES
-      var notesToPlay = [];  // Aquí se almacenan las notas extraídas del archivo MIDI
-      var currentNoteIndex = 0; // Índice para la secuencia de notas
+      var notesToPlay = [];  // Array para las notas extraídas del archivo MIDI
+      var currentNoteIndex = 0; // Índice para reproducir la secuencia
       
       // Canvas (parte visual)
       var canvas = document.getElementById('pianoRollCanvas');
@@ -210,7 +210,7 @@
       function playSynthPianoNote(volume, frequency) {
         var now = audioContext.currentTime;
         var oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine';  // Onda senoidal (puedes probar 'triangle' si prefieres)
+        oscillator.type = 'sine';  // Onda senoidal (puedes probar 'triangle')
         oscillator.frequency.value = frequency || 261.63; // Por defecto C4
         var gainNode = audioContext.createGain();
         // Envolvente: ataque muy rápido y decaimiento exponencial
@@ -229,6 +229,7 @@
       }
       
       // --- CARGA DEL ARCHIVO MIDI ---
+      // Permite cargar archivos MIDI mediante el input y también por los botones predefinidos
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
@@ -263,8 +264,18 @@
           .catch(error => console.error(`Error fetching ${fileName}:`, error));
       }
       
+      // Botones predefinidos para cargar archivos MIDI
+      document.getElementById('useBmidButton').addEventListener('click', function() {
+        selectButton('useBmidButton');
+        loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/7.mid', 'Preludio nº1 (Bach).mid');
+      });
+      
+      document.getElementById('useAmidButton').addEventListener('click', function() {
+        selectButton('useAmidButton');
+        loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
+      });
+      
       // Función para extraer los eventos "noteOn" y almacenarlos en notesToPlay
-      // Se elimina la condición "&& event.velocity > 0" para capturar todos los noteOn
       function extractNotesFromMidi(midi) {
         notesToPlay = [];
         currentNoteIndex = 0;
@@ -275,6 +286,7 @@
             if (event.deltaTime) {
               absoluteTime += event.deltaTime;
             }
+            // Se almacenan todos los eventos noteOn, como en el código original
             if (event.subtype === 'noteOn') {
               notesToPlay.push({
                 noteNumber: event.noteNumber,
@@ -298,7 +310,7 @@
       }
       
       // --- CONTROL POR GIROSCOPO ---
-      // Se dispara la siguiente nota de la secuencia del archivo MIDI con cada movimiento
+      // Con cada movimiento (según el umbral), se dispara la siguiente nota del archivo MIDI
       var gyroThreshold = 30;       // Umbral en grados/segundo
       var gyroMax = 200;            // Valor máximo esperado para mapear a volumen 1.0
       var gyroMinInterval = 50;     // Intervalo mínimo entre disparos (ms)
@@ -317,7 +329,7 @@
             var volume = Math.min(1.0, magnitude / gyroMax);
             if (notesToPlay.length > 0) {
               if (currentNoteIndex >= notesToPlay.length) {
-                currentNoteIndex = 0;  // Reiniciar secuencia si llegamos al final
+                currentNoteIndex = 0;  // Reinicia la secuencia al llegar al final
               }
               var note = notesToPlay[currentNoteIndex];
               var frequency = midiToFrequency(note.noteNumber);
@@ -325,7 +337,6 @@
               console.log("Reproduciendo nota MIDI:", note.noteNumber, "frecuencia:", frequency);
               currentNoteIndex++;
             } else {
-              // Si no hay archivo MIDI cargado, reproducir nota por defecto (C4)
               playPianoNote(volume, 261.63);
               console.log("Reproduciendo nota por defecto (C4)");
             }
@@ -340,7 +351,7 @@
         console.log("DeviceMotionEvent no es soportado en este dispositivo.");
       }
       
-      // Reanudar el AudioContext tras una interacción del usuario (importante en móviles)
+      // Reanudar el AudioContext tras la interacción del usuario (necesario en móviles)
       document.addEventListener('click', function() {
         if (audioContext.state === 'suspended') {
           audioContext.resume().then(() => {
@@ -356,7 +367,7 @@
         });
       });
       
-      // --- EVENTOS DEL CANVAS (parte de la interfaz original) ---
+      // --- EVENTOS DEL CANVAS (manteniendo parte de la interfaz original) ---
       canvas.addEventListener('mousedown', function(e) {
         isDragging = true;
         lastMouseDownCoords = { x: e.clientX, y: e.clientY };
