@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DREAM IT</title>
-  <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
+  <!-- Se incluyen los scripts de WebMIDIAPIShim, WebMidi y Jasmid (para la carga de archivos MIDI) -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
   <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
@@ -41,7 +41,8 @@
       align-items: center;
       margin-top: 20px;
     }
-    #fileInputContainer, #midiDeviceSelectContainer, #useBmidContainer, #useAmidContainer, #additionalButtonsContainer, #buyContainer {
+    #fileInputContainer, #midiDeviceSelectContainer, #useBmidContainer, #useAmidContainer, 
+    #additionalButtonsContainer, #buyContainer {
       width: fit-content;
       margin-top: 10px;
     }
@@ -186,11 +187,10 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       // VARIABLES Y CONFIGURACIONES
-      var notesToPlay = [];  // Array para las notas extraídas del archivo MIDI
-      var currentNoteIndex = 0; // Índice para reproducir la secuencia
+      var notesToPlay = [];  // Notas extraídas del archivo MIDI
+      var currentNoteIndex = 0; // Índice para la secuencia
       
-      // Variable para controlar la detección de dirección
-      // 1 = movimiento hacia abajo, -1 = movimiento hacia arriba, 0 = sin movimiento significativo (neutral)
+      // lastTriggeredDirection: 0 = neutro, 1 = golpe hacia abajo, -1 = golpe hacia arriba
       var lastTriggeredDirection = 0;
       
       // Canvas (parte visual)
@@ -210,14 +210,13 @@
         return 440 * Math.pow(2, (noteNumber - 69) / 12);
       }
       
-      // Función de síntesis básica: crea un oscilador con envolvente
+      // Función de síntesis básica: oscilador + envolvente
       function playSynthPianoNote(volume, frequency) {
         var now = audioContext.currentTime;
         var oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine';  // Onda senoidal (puedes probar 'triangle')
-        oscillator.frequency.value = frequency || 261.63; // Por defecto C4
+        oscillator.type = 'sine';  // Onda senoidal (puedes cambiar a 'triangle')
+        oscillator.frequency.value = frequency || 261.63; // C4 por defecto
         var gainNode = audioContext.createGain();
-        // Envolvente: ataque muy rápido y decaimiento exponencial
         gainNode.gain.setValueAtTime(0.0001, now);
         gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
         gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1);
@@ -227,7 +226,6 @@
         console.log("Nota disparada: frecuencia =", frequency, "volumen =", volume);
       }
       
-      // Función para reproducir la nota de piano usando síntesis básica
       function playPianoNote(volume, frequency) {
         playSynthPianoNote(volume, frequency);
       }
@@ -267,7 +265,6 @@
           .catch(error => console.error(`Error fetching ${fileName}:`, error));
       }
       
-      // Botones predefinidos para cargar archivos MIDI
       document.getElementById('useBmidButton').addEventListener('click', function() {
         selectButton('useBmidButton');
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/7.mid', 'Preludio nº1 (Bach).mid');
@@ -278,7 +275,6 @@
         loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
       });
       
-      // Función para extraer los eventos "noteOn" y almacenarlos en notesToPlay
       function extractNotesFromMidi(midi) {
         notesToPlay = [];
         currentNoteIndex = 0;
@@ -303,7 +299,6 @@
         console.log("Notas MIDI extraídas:", notesToPlay);
       }
       
-      // Función para cambiar el estilo de un botón (feedback visual)
       function selectButton(buttonId) {
         document.querySelectorAll('.button').forEach(button => {
           button.classList.remove('selected');
@@ -311,16 +306,19 @@
         document.getElementById(buttonId).classList.add('selected');
       }
       
-      // --- CONTROL POR GIROSCOPO (USANDO BETA PARA GOLPES ARRIBA/ABAJO) ---
-      // Definimos un umbral para beta y un umbral de reinicio (cuando el movimiento se reduce a casi 0)
-      var betaThreshold = 60;  // Umbral para detectar un golpe (en grados/segundo)
-      var betaReset = 5;      // Valor por debajo del cual se considera "neutral"
+      // --- CONTROL POR GIROSCOPO (USANDO BETA para golpes ARRIBA/ABAJO) ---
+      // Se dispara una nota cuando se detecta un golpe hacia abajo (beta > betaThreshold) o hacia arriba (beta < -betaThreshold)
+      // Y solo se dispara cuando se pasa de un estado neutro (|beta| < betaReset) a un movimiento.
+      var betaThreshold = 30;  // Umbral para detectar un golpe (en grados)
+      var betaReset = 15;      // Valor por debajo del cual se considera que el movimiento volvió a neutral
+      var gyroMinInterval = 100; // Intervalo mínimo entre disparos (ms)
+      var lastGyroNoteTime = 0;
       
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('devicemotion event:', rotation);
         if (rotation) {
-          var beta = rotation.beta || 0; // beta indica inclinación hacia adelante/atrás
+          var beta = rotation.beta || 0;
           var now = Date.now();
           var currentDirection = 0;
           if (beta > betaThreshold) {
@@ -328,10 +326,10 @@
           } else if (beta < -betaThreshold) {
             currentDirection = -1; // golpe hacia arriba
           }
-          
-          // Si se detecta movimiento en alguna dirección y aún no se ha disparado (estado neutral)
-          if (currentDirection !== 0 && lastTriggeredDirection === 0) {
-            var volume = Math.min(1.0, Math.abs(beta) / 200); // Intensidad basada en beta
+          // Solo disparamos si estamos en estado neutro y se detecta una dirección, y ha pasado el intervalo mínimo
+          if (currentDirection !== 0 && lastTriggeredDirection === 0 && (now - lastGyroNoteTime) > gyroMinInterval) {
+            // Calcular el volumen en función de beta (sensible al movimiento)
+            var volume = Math.min(1.0, Math.abs(beta) / 100); // Ajusta el divisor para mayor sensibilidad
             if (notesToPlay.length > 0) {
               if (currentNoteIndex >= notesToPlay.length) {
                 currentNoteIndex = 0;  // Reinicia la secuencia
@@ -346,8 +344,9 @@
               console.log("Reproduciendo nota por defecto (C4) dirección:", currentDirection);
             }
             lastTriggeredDirection = currentDirection;
+            lastGyroNoteTime = now;
           } else if (Math.abs(beta) < betaReset) {
-            // Cuando el movimiento se reduce a casi 0, reiniciamos para permitir el próximo disparo
+            // Cuando el movimiento regresa a neutral, reiniciamos para permitir disparar la siguiente nota
             lastTriggeredDirection = 0;
           }
         }
