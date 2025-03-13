@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DREAM IT - Debug</title>
+  <!-- WebMIDIAPIShim y WebMidi (aunque no se usará MIDI) -->
+  <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
+  <style>
+    body {
+      background-color: lightblue;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    #container {
+      text-align: center;
+      border: 6px solid blue;
+      padding: 30px;
+      width: 350px;
+      background-color: lightblue;
+      color: black;
+      position: relative;
+    }
+    #watermark {
+      position: absolute;
+      bottom: 30px;
+      right: 25px;
+      width:300px;
+      opacity: 0.1;
+      pointer-events: none;
+    }
+    .button {
+      padding: 6px 15px;
+      font-size: 0.8em;
+      color: white;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    .button.selected {
+      background-color: green;
+    }
+    .button:not(.selected):not(.control) {
+      background-color: blue;
+    }
+    .button.control:not(.selected) {
+      background-color: gray;
+    }
+    #pianoRollCanvas {
+      border: 1px solid blue;
+      cursor: grab;
+      margin-top: 20px;
+    }
+    #testButton {
+      margin-top: 15px;
+      background-color: darkorange;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>DREAM IT</h1>
+    <!-- Botón para probar manualmente el sonido -->
+    <button id="testButton" class="button">Probar Sonido</button>
+    
+    <canvas id="pianoRollCanvas" width="330" height="330"></canvas>
+    <!-- Marca de agua -->
+    <img id="watermark" src="https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/mejorr.png">
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // Variables básicas y para el canvas (de Dream It)
+      var canvas = document.getElementById('pianoRollCanvas');
+      var ctx = canvas.getContext('2d');
+      var lastMouseDownCoords = { x: 0, y: 0 };
+      var lastCanvasOffset = { x: 0, y: 0 };
+      var isDragging = false;
+      
+      // Configuración del AudioContext y síntesis básica
+      var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      
+      // Función de síntesis básica: oscilador + envolvente, con log de diagnóstico
+      function playSynthPianoNote(volume) {
+        var now = audioContext.currentTime;
+        var oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine';  // Onda senoidal
+        oscillator.frequency.value = 261.63; // Nota C4
+        var gainNode = audioContext.createGain();
+        // Envolvente: ataque rápido y decaimiento
+        gainNode.gain.setValueAtTime(0.0001, now);
+        gainNode.gain.linearRampToValueAtTime(volume, now + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 1);
+        oscillator.connect(gainNode).connect(audioContext.destination);
+        oscillator.start(now);
+        oscillator.stop(now + 1);
+        console.log("Nota disparada con volumen:", volume);
+      }
+      
+      // Función para reproducir nota de piano (usa síntesis básica)
+      function playPianoNote(volume) {
+        playSynthPianoNote(volume);
+      }
+      
+      // Configuración para el control por giroscopio vía devicemotion
+      var gyroThreshold = 30;       // Umbral (en grados/segundo) para disparar nota
+      var gyroMax = 200;            // Valor máximo para mapear a volumen 1.0
+      var gyroMinInterval = 50;     // Intervalo mínimo entre notas (ms)
+      var lastGyroNoteTime = 0;
+      
+      // Función para manejar devicemotion y disparar nota según el giro
+      function handleMotion(event) {
+        var rotation = event.rotationRate;
+        console.log('devicemotion event:', rotation);  // Log para diagnóstico
+        if (rotation) {
+          // Calcular magnitud usando alpha, beta y gamma
+          var alpha = rotation.alpha || 0;
+          var beta = rotation.beta || 0;
+          var gamma = rotation.gamma || 0;
+          var magnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
+          var now = Date.now();
+          if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
+            // Mapear magnitud a volumen (0.0 a 1.0)
+            var volume = Math.min(1.0, magnitude / gyroMax);
+            playPianoNote(volume);
+            lastGyroNoteTime = now;
+          }
+        }
+      }
+      
+      if (window.DeviceMotionEvent) {
+        window.addEventListener('devicemotion', handleMotion);
+      } else {
+        console.log("DeviceMotionEvent no es soportado en este dispositivo.");
+      }
+      
+      // Para reanudar el AudioContext tras interacción del usuario
+      document.addEventListener('click', function() {
+        if (audioContext.state === 'suspended') {
+          audioContext.resume().then(() => {
+            console.log("AudioContext reanudado");
+          });
+        }
+      });
+      
+      // Botón de prueba para disparar manualmente el sonido
+      document.getElementById('testButton').addEventListener('click', function() {
+        audioContext.resume().then(() => {
+          playPianoNote(0.5);
+        });
+      });
+      
+      // Eventos de canvas para arrastrar (manteniendo parte de Dream It)
+      canvas.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        lastMouseDownCoords = { x: e.clientX, y: e.clientY };
+        lastCanvasOffset = { x: 0, y: 0 };
+      });
+      
+      document.addEventListener('mouseup', function() {
+        isDragging = false;
+      });
+      
+      document.addEventListener('mousemove', function(e) {
+        if (isDragging) {
+          var offsetX = e.clientX - lastMouseDownCoords.x;
+          var offsetY = e.clientY - lastMouseDownCoords.y;
+          lastCanvasOffset = { x: offsetX, y: offsetY };
+          // Redibujar canvas si fuese necesario
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+      });
+      
+    });
+  </script>
+</body>
+</html>
