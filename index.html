@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DREAM IT - Piano Real con Soundfont‑Player</title>
-  <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
+  <!-- Scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
   <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
-  <!-- Incluir Soundfont‑Player -->
+  <!-- Incluir Soundfont‑Player versión 0.7.0 -->
   <script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.js"></script>
   <style>
     body {
@@ -211,7 +211,7 @@
       // VARIABLES PARA LAS NOTAS
       var noteDuration = 1;         // Duración de la nota en segundos
       var defaultNoteNumber = 60;   // Por defecto, C4 (número MIDI 60)
-      var groupThreshold = 0.001;   // Tolerancia para agrupar eventos simultáneos (puedes ajustarlo)
+      var groupThreshold = 0.001;   // Tolerancia para agrupar eventos simultáneos
       
       var lastGyroNoteTime = 0;
       
@@ -235,7 +235,7 @@
         console.log("Instrumento de piano cargado (Soundfont-Player).");
       });
       
-      // Función para reproducir la nota usando Soundfont-Player (sonido de piano real)
+      // Función para reproducir la nota usando Soundfont-Player (sonido real de piano)
       function playPianoSampleFromMidi(noteNumber, volume) {
         if (pianoPlayer) {
           var noteName = midiToNoteName(noteNumber);
@@ -247,7 +247,6 @@
       }
       
       // --- CARGA DEL ARCHIVO MIDI ---
-      // Se permite cargar el archivo MIDI mediante el input o los botones predefinidos.
       document.getElementById('midiFile').addEventListener('change', function(e) {
         selectButton('fileButton');
         var reader = new FileReader();
@@ -327,7 +326,7 @@
       }
       
       // --- CONTROL POR GIRO (Devicemotion) ---
-      // Cada vez que se detecta un giro válido, se reproducen las notas agrupadas que sean simultáneas.
+      // Cada vez que se detecta un giro válido, se reproducen las notas agrupadas (para que suenen juntas)
       function handleMotion(event) {
         var rotation = event.rotationRate;
         console.log('Evento devicemotion:', rotation);
@@ -340,13 +339,13 @@
           if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
             var volume = Math.min(1.0, magnitude / gyroMax);
             if (notesToPlay.length > 0) {
-              // Agrupar las notas con tiempo similar (dentro de groupThreshold)
+              // Agrupar notas que tengan tiempos muy similares (dentro de groupThreshold)
               var groupEnd = currentNoteIndex + 1;
               while (groupEnd < notesToPlay.length &&
                      Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
                 groupEnd++;
               }
-              // Reproducir todas las notas del grupo de forma simultánea
+              // Reproducir todas las notas del grupo simultáneamente
               for (var i = currentNoteIndex; i < groupEnd; i++) {
                 var note = notesToPlay[i];
                 playPianoSampleFromMidi(note.noteNumber, volume);
@@ -354,7 +353,7 @@
               }
               currentNoteIndex = groupEnd;
             } else {
-              // Si no se cargó un archivo MIDI, reproducir la nota por defecto
+              // Si no hay archivo MIDI cargado, reproducir la nota por defecto
               playPianoSampleFromMidi(defaultNoteNumber, volume);
               console.log("Reproduciendo nota por defecto:", defaultNoteNumber);
             }
@@ -383,7 +382,7 @@
         playPianoSampleFromMidi(defaultNoteNumber, 0.5);
       });
       
-      // --- EVENTOS DEL CANVAS (para mantener la interfaz original) ---
+      // --- EVENTOS DEL CANVAS (manteniendo parte de la interfaz original) ---
       canvas.addEventListener('mousedown', function(e) {
         isDragging = true;
         lastMouseDownCoords = { x: e.clientX, y: e.clientY };
