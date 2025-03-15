@@ -251,7 +251,7 @@
         var alpha = rotation.alpha || 0;
         var beta = rotation.beta || 0;
         var gamma = rotation.gamma || 0;
-        var magnitude = Math.abs(beta);  // Solo utiliza el eje alpha
+        var magnitude = Math.abs(alpha);  // Solo utiliza el eje alpha
         var now = Date.now();
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
           var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
