@@ -79,19 +79,9 @@
     }
     /* Estilo para el nombre del archivo */
     #fileName {
-      margin-top: 5px; /* Ajustado para acercar el título al botón */
+      margin-top: 0px;
       font-style: italic;
       color: white;
-    }
-    /* Botón para iOS con Web MIDI App */
-    #iosMidiButton {
-      background-color: orange;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      padding: 10px 20px;
-      font-size: 1em;
-      cursor: pointer;
     }
   </style>
 </head>
@@ -111,10 +101,6 @@
       <!-- Elemento para mostrar el nombre del archivo -->
       <div id="fileName"></div>
       <button id="startButton" class="button">Empezar</button>
-      <!-- Botón para abrir la app Web MIDI en iOS -->
-      <button onclick="window.location.href='webmidiapp://open?url=https://rafgim2.github.io/DreamTwist/'">
-        For iOS with Web Midi App
-      </button>
     </div>
   </div>
 
