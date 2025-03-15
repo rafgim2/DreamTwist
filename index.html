@@ -3,17 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DREAM IT - Control por Giro y Archivo MIDI</title>
-  <!-- Se mantienen los scripts de WebMIDIAPIShim, WebMidi y Jasmid -->
+  <title>DreamTwist</title>
+  <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
   <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
-  <!-- Se carga soundfont-player 0.7.0 SIN defer para que se ejecute inmediatamente -->
   <script src="https://unpkg.com/soundfont-player/dist/soundfont-player.js"></script>
   <style>
     body {
-      background-color: lightblue;
+      background-color: #DA70D6; /* Morado Orquídea */
       display: flex;
       justify-content: center;
       align-items: center;
@@ -24,380 +23,234 @@
       text-align: center;
       border: 6px solid blue;
       padding: 30px;
-      width: 350px;
-      background-color: lightblue;
-      color: black;
-      position: relative;
-    }
-    #watermark {
-      position: absolute;
-      bottom: 30px;
-      right: 25px;
-      width:300px;
-      opacity: 0.1;
-      pointer-events: none;
-    }
-    #fileContainer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin-top: 20px;
-    }
-    #fileInputContainer, #midiDeviceSelectContainer, #useBmidContainer, #useAmidContainer, #additionalButtonsContainer, #buyContainer {
-      width: fit-content;
-      margin-top: 10px;
-    }
-    .button {
-      padding: 6px 15px;
-      font-size: 0.8em;
+      background-color: #DA70D6;
       color: white;
-      border: 1px solid transparent;
-      border-radius: 5px;
-      cursor: pointer;
-      margin: 5px;
-    }
-    .button.selected {
-      background-color: green;
-    }
-    .button:not(.selected):not(.control) {
-      background-color: blue;
-    }
-    .button.control:not(.selected) {
-      background-color: gray;
-    }
-    #fileName {
-      margin-top: 10px;
-      font-style: italic;
-      display: block;
-    }
-    #midiDeviceSelect {
-      width: fit-content;
-      max-width: 100%;
+      width: 350px;
+      box-sizing: border-box;
     }
     h1 {
-      font-size: 4em;
-      color: green;
-      margin-top: -20px;
-    }
-    #buttonsContainer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    #buyButton {
-      padding: 4px 10px;
-      background: linear-gradient(to right, #FF8C00, #FFA500);
-      margin-top: 10px;
-      border-width: 1px;
-    }
-    #buyButton span {
-      font-size: 1em;
-    }
-    #supportText {
-      margin-top: 10px;
-      color: black;
-      font-weight: bold;
+      margin: 0;
+      font-size: 3em;
     }
     #copyright {
+      margin-top: 5px;
+      font-size: 0.9em;
+    }
+    /* Estilo para el logo con marco azul */
+    #logo {
+      display: block;
+      margin: 20px auto;
+      max-width: 80%;
+      border: 3px solid blue;
+    }
+    #buttons {
       margin-top: 20px;
-      color: green;
-    }
-    #pianoRollContainer {
-      margin-top: 20px;
-      overflow: hidden;
-      position: relative;
-    }
-    #pianoRollCanvas {
-      border: 1px solid blue;
-      cursor: grab;
-    }
-    #canvasWrapper {
-      width: 100%;
       display: flex;
-      justify-content: center;
       flex-direction: column;
+      gap: 15px;
+      align-items: center;
     }
-    #zoomButtonsContainer, #scrollButtonsContainer, #midiPositionButtonsContainer {
-      display: flex;
-      justify-content: center;
+    .button {
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    /* Botón para probar manualmente el sonido */
-    #testButton {
-      margin-top: 15px;
-      background-color: darkorange;
+    /* Botón de cargar: azul por defecto */
+    #loadButton {
+      background-color: blue;
+      color: white;
+    }
+    /* Botón de empezar: verde por defecto */
+    #startButton {
+      background-color: green;
+      color: white;
+    }
+    /* Cuando el botón está activo (iniciado) se pondrá rojo */
+    #startButton.active {
+      background-color: red;
+    }
+    /* Ocultar input de archivo */
+    #midiFile {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div id="container">
-    <h1>DREAM IT</h1>
-    <div id="fileContainer">
-      <div id="fileInputContainer" style="margin-bottom: 10px;">
-        <label for="midiFile" class="button" id="fileButton">
-          Play any MIDI
-          <input type="file" id="midiFile" accept=".mid" style="display:none;">
-        </label>
-      </div>
-      <span id="fileName"></span>
-      <div id="midiDeviceSelectContainer" style="margin-bottom: 20px;">
-        <select id="midiDeviceSelect"></select>
-      </div>
-      <div id="buttonsContainer">
-        <div id="useBmidContainer">
-          <button id="useBmidButton" class="button">Preludio nº1 (Bach)</button>
-        </div>
-        <div id="useAmidContainer">
-          <button id="useAmidButton" class="button">Dream nº1 (Rafael Gimeno)</button>
-        </div>
-        <div id="additionalButtonsContainer">
-          <button id="midiLocalControlOn" class="button control">MIDI Local Control ON</button>
-          <button id="midiLocalControlOff" class="button control">MIDI Local Control OFF</button>
-        </div>
-      </div>
-      <div id="supportText">Support this app:</div>
-      <div id="buyContainer" style="margin-top: 0px;">
-        <button id="buyButton" class="button"><span>🛒 BUY NOW MIDIs for DREAM IT</span></button>
-      </div>
-      <div id="copyright">
-        <a href="https://www.rafaelgimeno.com/" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
-      </div>
+    <h1>DreamTwist</h1>
+    <div id="copyright">
+      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
     </div>
-    <!-- Botón de prueba para disparar manualmente una nota -->
-    <button id="testButton" class="button">Probar Sonido</button>
-    <div id="canvasWrapper">
-      <div id="pianoRollContainer">
-        <canvas id="pianoRollCanvas" width="330" height="330"></canvas>
-        <!-- Marca de agua -->
-        <img id="watermark" src="https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/mejorr.png">
-      </div>
-      <div id="zoomButtonsContainer">
-        <button id="zoomInButton" class="button" style="margin-right: 10px;">Zoom +</button>
-        <button id="zoomOutButton" class="button">Zoom -</button>
-      </div>
-      <div id="scrollButtonsContainer">
-        <button id="scrollUpButton" class="button" style="margin-right: 10px;">Move 👇</button>
-        <button id="scrollDownButton" class="button">Move 👆</button>
-      </div>
-      <div id="midiPositionButtonsContainer">
-        <button id="backwardMidiPositionButton" class="button" style="margin-right: 10px;">👈 Backward</button>
-        <button id="forwardMidiPositionButton" class="button">Forward 👉</button>
-      </div>
+    <!-- Logo centrado. Se usa la dirección raw del archivo -->
+    <img id="logo" src="https://raw.githubusercontent.com/rafgim2/giroscopio/main/Logo%202Dreamtwist.png" alt="Logo DreamTwist">
+    <div id="buttons">
+      <label for="midiFile" id="loadButton" class="button">
+        Cargar Archivo MIDI
+        <input type="file" id="midiFile" accept=".mid">
+      </label>
+      <button id="startButton" class="button">Empezar</button>
     </div>
   </div>
 
   <script>
-    // Usamos window.onload para asegurarnos de que todos los scripts se hayan cargado
-    window.onload = function () {
-      // VARIABLES PARA LAS NOTAS MIDI
-      var notesToPlay = [];  // Array con las notas extraídas del archivo MIDI
-      var currentNoteIndex = 0; // Índice de la siguiente nota o grupo de notas a reproducir
-
-      // VARIABLES DEL CANVAS (interfaz visual)
-      var canvas = document.getElementById('pianoRollCanvas');
-      var ctx = canvas.getContext('2d');
-      var lastMouseDownCoords = { x: 0, y: 0 };
-      var lastCanvasOffset = { x: 0, y: 0 };
-      var isDragging = false;
-      let scale = 8;
-      let verticalScrollAmount = 20;
-
-      // CONFIGURACIÓN DEL AUDIO
-      var audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-      // CARGA DEL INSTRUMENTO DE PIANO CON SOUNDFONT-PLAYER (versión 0.7.0)
-      var pianoInstrument = null;
-      if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
-        window.Soundfont.instrument(audioContext, 'acoustic_grand_piano')
-          .then(function(piano) {
-            pianoInstrument = piano;
-            console.log("Instrumento de piano cargado.");
-          })
-          .catch(function(error) {
-            console.error("Error al cargar el instrumento:", error);
-          });
-      } else {
-        console.error("No se encontró el método instrument en Soundfont.");
-      }
-
-      // VARIABLES AJUSTABLES PARA EL CONTROL POR GIRO
-      var gyroThreshold = 300;    // Umbral en grados/segundo para detectar un giro válido.
-      var gyroMinInterval = 150;    // Intervalo mínimo entre disparos (ms).
-      var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0.
-
-      // VARIABLES PARA LAS NOTAS
-      var noteDuration = 1;       // Duración de la nota en segundos.
-      var defaultMidiNote = 60;   // Nota por defecto: C4
-      var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn" simultáneos.
-
-      // Control de disparo
-      var lastGyroNoteTime = 0;
-
-      // Función para convertir un número MIDI a notación (ej. "C4")
-      function midiNoteToNoteName(midi) {
-        var octave = Math.floor(midi / 12) - 1;
-        var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        return noteNames[midi % 12] + octave;
-      }
-
-      // Función para reproducir nota de piano usando soundfont-player.
-      function playPianoNote(volume, midiNote) {
-        if (pianoInstrument) {
-          var noteName = midiNoteToNoteName(midiNote);
-          pianoInstrument.play(noteName, audioContext.currentTime, { gain: volume, duration: noteDuration });
-          console.log("Nota reproducida:", noteName, "volumen:", volume);
-        } else {
-          console.warn("El instrumento aún no se ha cargado.");
-        }
-      }
-
-      // --- CARGA DEL ARCHIVO MIDI ---
-      document.getElementById('midiFile').addEventListener('change', function(e) {
-        selectButton('fileButton');
-        var reader = new FileReader();
-        reader.onload = function(e) {
-          try {
-            var midi = new MidiFile(e.target.result);
-            extractNotesFromMidi(midi);
-          } catch (error) {
-            console.error("Error al parsear el archivo MIDI:", error);
-          }
-        };
-        reader.readAsBinaryString(e.target.files[0]);
-        document.getElementById('fileName').textContent = e.target.files[0].name;
-      });
-
-      function loadAndUseMidi(url, fileName) {
-        fetch(url)
-          .then(response => response.arrayBuffer())
-          .then(data => {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-              try {
-                var midi = new MidiFile(e.target.result);
-                extractNotesFromMidi(midi);
-              } catch (error) {
-                console.error("Error al parsear el archivo MIDI:", error);
-              }
-            };
-            reader.readAsBinaryString(new Blob([data]));
-            document.getElementById('fileName').textContent = fileName;
-          })
-          .catch(error => console.error(`Error al cargar ${fileName}:`, error));
-      }
-
-      document.getElementById('useBmidButton').addEventListener('click', function() {
-        selectButton('useBmidButton');
-        loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/7.mid', 'Preludio nº1 (Bach).mid');
-      });
-
-      document.getElementById('useAmidButton').addEventListener('click', function() {
-        selectButton('useAmidButton');
-        loadAndUseMidi('https://cdn.jsdelivr.net/gh/rafgim/NUEVO@main/2.mid', 'Dream nº1 (Rafael Gimeno).mid');
-      });
-
-      function extractNotesFromMidi(midi) {
-        notesToPlay = [];
-        currentNoteIndex = 0;
-        var absoluteTime = 0;
-        midi.tracks.forEach(track => {
-          absoluteTime = 0;
-          track.forEach(event => {
-            if (event.deltaTime) {
-              absoluteTime += event.deltaTime;
-            }
-            if (event.subtype === 'noteOn') {
-              notesToPlay.push({
-                noteNumber: event.noteNumber,
-                velocity: event.velocity,
-                channel: event.channel,
-                time: absoluteTime
-              });
-            }
-          });
+    // Variable para controlar si la detección de movimiento está activa
+    let started = false;
+    
+    // VARIABLES PARA LAS NOTAS MIDI
+    var notesToPlay = [];
+    var currentNoteIndex = 0;
+    
+    // CONFIGURACIÓN DEL AUDIO
+    var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    var pianoInstrument = null;
+    if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
+      window.Soundfont.instrument(audioContext, 'acoustic_grand_piano')
+        .then(function(piano) {
+          pianoInstrument = piano;
+          console.log("Instrumento de piano cargado.");
+        })
+        .catch(function(error) {
+          console.error("Error al cargar el instrumento:", error);
         });
-        notesToPlay.sort((a, b) => a.time - b.time);
-        console.log("Notas MIDI extraídas:", notesToPlay);
-      }
+    } else {
+      console.error("No se encontró el método instrument en Soundfont.");
+    }
+    
+    // Duración por defecto de las notas
+    var noteDuration = 1;
+    var defaultMidiNote = 60; // C4
 
-      function selectButton(buttonId) {
-        document.querySelectorAll('.button').forEach(button => {
-          button.classList.remove('selected');
-        });
-        document.getElementById(buttonId).classList.add('selected');
-      }
-
-      // --- CONTROL POR GIRO (Devicemotion) ---
-      function handleMotion(event) {
-        var rotation = event.rotationRate;
-        console.log('devicemotion event:', rotation);
-        if (rotation) {
-          var alpha = rotation.alpha || 0;
-          var beta = rotation.beta || 0;
-          var gamma = rotation.gamma || 0;
-          var magnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
-          var now = Date.now();
-          if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-            var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
-
-            if (notesToPlay.length > 0) {
-              var groupEnd = currentNoteIndex + 1;
-              while (groupEnd < notesToPlay.length &&
-                     Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
-                groupEnd++;
-              }
-              for (var i = currentNoteIndex; i < groupEnd; i++) {
-                var note = notesToPlay[i];
-                playPianoNote(volume, note.noteNumber);
-                console.log("Reproduciendo nota MIDI:", note.noteNumber);
-              }
-              currentNoteIndex = groupEnd;
-            } else {
-              playPianoNote(volume, defaultMidiNote);
-              console.log("Reproduciendo nota por defecto:", defaultMidiNote);
-            }
-            lastGyroNoteTime = now;
-          }
-        }
-      }
-
-      if (window.DeviceMotionEvent) {
-        window.addEventListener('devicemotion', handleMotion);
+    // Función para convertir número MIDI a nota (ej. "C4")
+    function midiNoteToNoteName(midi) {
+      var octave = Math.floor(midi / 12) - 1;
+      var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return noteNames[midi % 12] + octave;
+    }
+    
+    // Función para reproducir nota usando soundfont-player.
+    function playPianoNote(volume, midiNote) {
+      if (pianoInstrument) {
+        var noteName = midiNoteToNoteName(midiNote);
+        pianoInstrument.play(noteName, audioContext.currentTime, { gain: volume, duration: noteDuration });
+        console.log("Nota reproducida:", noteName, "volumen:", volume);
       } else {
-        console.log("DeviceMotionEvent no es soportado en este dispositivo.");
+        console.warn("El instrumento aún no se ha cargado.");
       }
-
-      // Reanudar el AudioContext tras una interacción del usuario
-      document.addEventListener('click', function() {
-        if (audioContext.state === 'suspended') {
-          audioContext.resume().then(() => {
-            console.log("AudioContext reanudado");
-          });
+    }
+    
+    // --- CARGA DEL ARCHIVO MIDI ---
+    document.getElementById('midiFile').addEventListener('change', function(e) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var midi = new MidiFile(e.target.result);
+          extractNotesFromMidi(midi);
+        } catch (error) {
+          console.error("Error al parsear el archivo MIDI:", error);
         }
+      };
+      reader.readAsBinaryString(e.target.files[0]);
+    });
+    
+    function extractNotesFromMidi(midi) {
+      notesToPlay = [];
+      currentNoteIndex = 0;
+      var absoluteTime = 0;
+      midi.tracks.forEach(track => {
+        absoluteTime = 0;
+        track.forEach(event => {
+          if (event.deltaTime) {
+            absoluteTime += event.deltaTime;
+          }
+          if (event.subtype === 'noteOn') {
+            notesToPlay.push({
+              noteNumber: event.noteNumber,
+              velocity: event.velocity,
+              channel: event.channel,
+              time: absoluteTime
+            });
+          }
+        });
       });
+      notesToPlay.sort((a, b) => a.time - b.time);
+      console.log("Notas MIDI extraídas:", notesToPlay);
+    }
+    
+    // --- EVENTO PARA EL BOTÓN "EMPEZAR" ---
+    document.getElementById('startButton').addEventListener('click', function() {
+      // Si no está iniciado, activamos la detección y cambiamos el botón a rojo.
+      if (!started) {
+        started = true;
+        this.classList.add('active');
+        console.log("Detección iniciada.");
+      } else { // Si ya estaba iniciado (botón en rojo), se detiene y se vuelve verde.
+        started = false;
+        this.classList.remove('active');
+        console.log("Detección detenida manualmente.");
+      }
+    });
+    
+    // --- CONTROL POR GIRO (Devicemotion) ---
+    // Se procesarán los movimientos solo si se ha pulsado "Empezar"
+    var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
+    var gyroMinInterval = 150;  // Intervalo mínimo entre disparos (ms)
+    var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0
+    var lastGyroNoteTime = 0;
+    var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
 
-      document.getElementById('testButton').addEventListener('click', function() {
-        playPianoNote(0.5, defaultMidiNote);
-      });
-
-      canvas.addEventListener('mousedown', function(e) {
-        isDragging = true;
-        lastMouseDownCoords = { x: e.clientX, y: e.clientY };
-        lastCanvasOffset = { x: 0, y: 0 };
-      });
-
-      document.addEventListener('mouseup', function() {
-        isDragging = false;
-      });
-
-      document.addEventListener('mousemove', function(e) {
-        if (isDragging) {
-          var offsetX = e.clientX - lastMouseDownCoords.x;
-          var offsetY = e.clientY - lastMouseDownCoords.y;
-          lastCanvasOffset = { x: offsetX, y: offsetY };
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+    function handleMotion(event) {
+      if (!started) return; // Ignorar eventos si la detección está desactivada
+      var rotation = event.rotationRate;
+      if (rotation) {
+        var alpha = rotation.alpha || 0;
+        var beta = rotation.beta || 0;
+        var gamma = rotation.gamma || 0;
+        var magnitude = Math.sqrt(alpha * alpha + beta * beta + gamma * gamma);
+        var now = Date.now();
+        if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
+          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
+          if (notesToPlay.length > 0) {
+            var groupEnd = currentNoteIndex + 1;
+            while (groupEnd < notesToPlay.length &&
+                   Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
+              groupEnd++;
+            }
+            // Reproducir grupo de notas
+            for (var i = currentNoteIndex; i < groupEnd; i++) {
+              var note = notesToPlay[i];
+              playPianoNote(volume, note.noteNumber);
+            }
+            currentNoteIndex = groupEnd;
+            // Si se han reproducido todas las notas, detener la detección y cambiar el botón a verde.
+            if (currentNoteIndex >= notesToPlay.length) {
+              started = false;
+              document.getElementById('startButton').classList.remove('active');
+              console.log("Reproducción completada.");
+            }
+          } else {
+            playPianoNote(volume, defaultMidiNote);
+          }
+          lastGyroNoteTime = now;
         }
-      });
-    };
+      }
+    }
+    
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleMotion);
+    } else {
+      console.log("DeviceMotionEvent no es soportado en este dispositivo.");
+    }
+    
+    // Reanudar AudioContext tras interacción del usuario
+    document.addEventListener('click', function() {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log("AudioContext reanudado");
+        });
+      }
+    });
   </script>
 </body>
 </html>
