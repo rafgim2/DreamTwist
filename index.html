@@ -77,6 +77,12 @@
     #midiFile {
       display: none;
     }
+    /* Estilo para el nombre del archivo */
+    #fileName {
+      margin-top: 10px;
+      font-style: italic;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -92,6 +98,8 @@
         Cargar Archivo MIDI
         <input type="file" id="midiFile" accept=".mid">
       </label>
+      <!-- Elemento para mostrar el nombre del archivo -->
+      <div id="fileName"></div>
       <button id="startButton" class="button">Empezar</button>
     </div>
   </div>
@@ -144,6 +152,8 @@
     
     // --- CARGA DEL ARCHIVO MIDI ---
     document.getElementById('midiFile').addEventListener('change', function(e) {
+      // Actualizar nombre del archivo
+      document.getElementById('fileName').textContent = e.target.files[0].name;
       var reader = new FileReader();
       reader.onload = function(e) {
         try {
@@ -157,7 +167,7 @@
     });
     
     // Función para cargar un MIDI desde una URL
-    function loadMidiFromUrl(url) {
+    function loadMidiFromUrl(url, fileName) {
       fetch(url)
         .then(response => response.arrayBuffer())
         .then(data => {
@@ -171,15 +181,18 @@
             }
           };
           reader.readAsBinaryString(new Blob([data]));
+          // Actualizar nombre del archivo
+          document.getElementById('fileName').textContent = fileName;
         })
         .catch(error => console.error("Error al cargar el MIDI por defecto:", error));
     }
     
     // Cargar MIDI por defecto
     function loadDefaultMidi() {
-      // URL raw del archivo MIDI por defecto
+      // URL raw del archivo MIDI por defecto y nombre
       const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/giroscopio/main/Beethoven_Fur_Elise%20fro%20DREAMTWIST.mid";
-      loadMidiFromUrl(defaultMidiUrl);
+      const defaultFileName = "Beethoven_Fur_Elise fro DREAMTWIST.mid";
+      loadMidiFromUrl(defaultMidiUrl, defaultFileName);
     }
     
     // Extraer notas del archivo MIDI
