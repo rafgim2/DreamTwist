@@ -18,6 +18,7 @@
       align-items: center;
       height: 100vh;
       margin: 0;
+      overflow: hidden;
     }
     #container {
       text-align: center;
@@ -154,6 +155,33 @@
       reader.readAsBinaryString(e.target.files[0]);
     });
     
+    // Función para cargar un MIDI desde una URL
+    function loadMidiFromUrl(url) {
+      fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            try {
+              var midi = new MidiFile(e.target.result);
+              extractNotesFromMidi(midi);
+            } catch (error) {
+              console.error("Error al parsear el archivo MIDI:", error);
+            }
+          };
+          reader.readAsBinaryString(new Blob([data]));
+        })
+        .catch(error => console.error("Error al cargar el MIDI por defecto:", error));
+    }
+    
+    // Cargar MIDI por defecto
+    function loadDefaultMidi() {
+      // URL raw del archivo MIDI por defecto
+      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/giroscopio/main/Beethoven_Fur_Elise%20fro%20DREAMTWIST.mid";
+      loadMidiFromUrl(defaultMidiUrl);
+    }
+    
+    // Extraer notas del archivo MIDI
     function extractNotesFromMidi(midi) {
       notesToPlay = [];
       currentNoteIndex = 0;
@@ -185,7 +213,7 @@
         started = true;
         this.classList.add('active');
         console.log("Detección iniciada.");
-      } else { // Si ya estaba iniciado (botón en rojo), se detiene y se vuelve verde.
+      } else { // Si ya estaba iniciado, se detiene y se vuelve verde.
         started = false;
         this.classList.remove('active');
         console.log("Detección detenida manualmente.");
@@ -251,6 +279,16 @@
         });
       }
     });
+    
+    // Bloqueo de la orientación de la pantalla en modo retrato
+    if (screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock('portrait').catch(function(error) {
+        console.log("No se pudo bloquear la orientación:", error);
+      });
+    }
+    
+    // Al cargar la página, se carga el archivo MIDI por defecto
+    window.addEventListener('load', loadDefaultMidi);
   </script>
 </body>
 </html>
