@@ -222,16 +222,19 @@
     
     // --- EVENTO PARA EL BOTÓN "EMPEZAR" ---
     document.getElementById('startButton').addEventListener('click', function() {
-      if (!started) {
-        started = true;
-        this.classList.add('active');
-        console.log("Detección iniciada.");
-      } else {
-        started = false;
-        this.classList.remove('active');
-        console.log("Detección detenida manualmente.");
-      }
-    });
+  if (!started) {
+    started = true;
+    this.classList.add('active');
+    this.textContent = "Parar";
+    console.log("Detección iniciada.");
+  } else {
+    started = false;
+    this.classList.remove('active');
+    this.textContent = "Empezar";
+    console.log("Detección detenida manualmente.");
+  }
+});
+
     
     // --- CONTROL POR GIRO (Devicemotion) ---
     // Se procesan los movimientos solo si se ha pulsado "Empezar"
