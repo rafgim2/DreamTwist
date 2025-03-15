@@ -290,15 +290,15 @@
       });
     }
     
-    // Función para forzar que el contenido se vea en vertical
+    // Función para forzar que el contenido se vea en vertical.
+    // Ahora se rota 270° (90° + 180° extra) cuando el dispositivo está en landscape.
     function enforcePortrait() {
       const container = document.getElementById('container');
-      // Si la ventana está en landscape, se rota el contenedor 90 grados para que se vea vertical
       if(window.innerWidth > window.innerHeight) {
         container.style.position = "absolute";
         container.style.top = "50%";
         container.style.left = "50%";
-        container.style.transform = "translate(-50%, -50%) rotate(90deg)";
+        container.style.transform = "translate(-50%, -50%) rotate(270deg)";
       } else {
         container.style.position = "relative";
         container.style.transform = "none";
