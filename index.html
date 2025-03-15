@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- Se recomienda usar la siguiente meta para evitar escalado excesivo -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <!-- Meta viewport sin restricciones de rotación -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>DreamTwist</title>
   <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
@@ -19,9 +19,8 @@
       align-items: center;
       height: 100vh;
       margin: 0;
-      /* Se eliminó overflow: hidden para permitir pull-to-refresh */
     }
-    /* Contenedor central, siempre centrado con posición absoluta */
+    /* Contenedor central */
     #container {
       text-align: center;
       border: 6px solid blue;
@@ -30,10 +29,6 @@
       color: white;
       width: 350px;
       box-sizing: border-box;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transition: transform 0.3s ease;
     }
     h1 {
       margin: 0;
@@ -214,12 +209,11 @@
     
     // --- EVENTO PARA EL BOTÓN "EMPEZAR" ---
     document.getElementById('startButton').addEventListener('click', function() {
-      // Si no está iniciado, activamos la detección y cambiamos el botón a rojo.
       if (!started) {
         started = true;
         this.classList.add('active');
         console.log("Detección iniciada.");
-      } else { // Si ya estaba iniciado, se detiene y se vuelve verde.
+      } else {
         started = false;
         this.classList.remove('active');
         console.log("Detección detenida manualmente.");
@@ -227,7 +221,7 @@
     });
     
     // --- CONTROL POR GIRO (Devicemotion) ---
-    // Se procesarán los movimientos solo si se ha pulsado "Empezar"
+    // Se procesan los movimientos solo si se ha pulsado "Empezar"
     var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
     var gyroMinInterval = 150;  // Intervalo mínimo entre disparos (ms)
     var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0
@@ -235,7 +229,7 @@
     var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
 
     function handleMotion(event) {
-      if (!started) return; // Ignorar eventos si la detección está desactivada
+      if (!started) return;
       var rotation = event.rotationRate;
       if (rotation) {
         var alpha = rotation.alpha || 0;
@@ -251,13 +245,10 @@
                    Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
               groupEnd++;
             }
-            // Reproducir grupo de notas
             for (var i = currentNoteIndex; i < groupEnd; i++) {
-              var note = notesToPlay[i];
-              playPianoNote(volume, note.noteNumber);
+              playPianoNote(volume, notesToPlay[i].noteNumber);
             }
             currentNoteIndex = groupEnd;
-            // Si se han reproducido todas las notas, detener la detección y cambiar el botón a verde.
             if (currentNoteIndex >= notesToPlay.length) {
               started = false;
               document.getElementById('startButton').classList.remove('active');
@@ -286,30 +277,8 @@
       }
     });
     
-    // Intento de bloqueo de orientación (funciona en navegadores compatibles y en HTTPS)
-    if (screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock('portrait').catch(function(error) {
-        console.log("No se pudo bloquear la orientación:", error);
-      });
-    }
-    
-    // Función para forzar que el contenido se vea siempre en vertical.
-    // Se centra el contenedor; en landscape se rota 270° y en vertical solo se centra.
-    function enforcePortrait() {
-      const container = document.getElementById('container');
-      if (window.innerWidth > window.innerHeight) {
-        container.style.transform = "translate(-50%, -50%) rotate(270deg)";
-      } else {
-        container.style.transform = "translate(-50%, -50%)";
-      }
-    }
-    
-    window.addEventListener("resize", enforcePortrait);
-    window.addEventListener("orientationchange", enforcePortrait);
-    window.addEventListener("load", function() {
-      enforcePortrait();
-      loadDefaultMidi();
-    });
+    // Al cargar la página se carga el MIDI por defecto
+    window.addEventListener('load', loadDefaultMidi);
   </script>
 </body>
 </html>
