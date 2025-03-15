@@ -222,20 +222,21 @@
     
     // --- EVENTO PARA EL BOTÓN "EMPEZAR" ---
     document.getElementById('startButton').addEventListener('click', function() {
-  if (!started) {
-    started = true;
-    this.classList.add('active');
-    this.textContent = "Parar";
-    console.log("Detección iniciada.");
-  } else {
-    started = false;
-    this.classList.remove('active');
-    this.textContent = "Empezar";
-    console.log("Detección detenida manualmente.");
-  }
-});
+      if (!started) {
+        // Reiniciar la reproducción al pulsar "Empezar"
+        currentNoteIndex = 0;
+        started = true;
+        this.classList.add('active');
+        this.textContent = "Parar";
+        console.log("Detección iniciada.");
+      } else {
+        started = false;
+        this.classList.remove('active');
+        this.textContent = "Empezar";
+        console.log("Detección detenida manualmente.");
+      }
+    });
 
-    
     // --- CONTROL POR GIRO (Devicemotion) ---
     // Se procesan los movimientos solo si se ha pulsado "Empezar"
     var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
@@ -268,6 +269,7 @@
             if (currentNoteIndex >= notesToPlay.length) {
               started = false;
               document.getElementById('startButton').classList.remove('active');
+              document.getElementById('startButton').textContent = "Empezar"; // Cambio de texto al finalizar
               console.log("Reproducción completada.");
             }
           } else {
