@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <!-- Se recomienda usar la siguiente meta para evitar escalado, aunque no garantiza el bloqueo -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- Se recomienda usar la siguiente meta para evitar escalado excesivo -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>DreamTwist</title>
   <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
@@ -19,9 +19,9 @@
       align-items: center;
       height: 100vh;
       margin: 0;
-      overflow: hidden;
+      /* Se eliminó overflow: hidden para permitir pull-to-refresh */
     }
-    /* Contenedor central que se rotará en caso de orientación horizontal */
+    /* Contenedor central, siempre centrado con posición absoluta */
     #container {
       text-align: center;
       border: 6px solid blue;
@@ -30,6 +30,9 @@
       color: white;
       width: 350px;
       box-sizing: border-box;
+      position: absolute;
+      top: 50%;
+      left: 50%;
       transition: transform 0.3s ease;
     }
     h1 {
@@ -283,25 +286,21 @@
       }
     });
     
-    // Intento de bloqueo de orientación (solo funcionará en navegadores compatibles y con HTTPS)
+    // Intento de bloqueo de orientación (funciona en navegadores compatibles y en HTTPS)
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('portrait').catch(function(error) {
         console.log("No se pudo bloquear la orientación:", error);
       });
     }
     
-    // Función para forzar que el contenido se vea en vertical.
-    // Ahora se rota 270° (90° + 180° extra) cuando el dispositivo está en landscape.
+    // Función para forzar que el contenido se vea siempre en vertical.
+    // Se centra el contenedor; en landscape se rota 270° y en vertical solo se centra.
     function enforcePortrait() {
       const container = document.getElementById('container');
-      if(window.innerWidth > window.innerHeight) {
-        container.style.position = "absolute";
-        container.style.top = "50%";
-        container.style.left = "50%";
+      if (window.innerWidth > window.innerHeight) {
         container.style.transform = "translate(-50%, -50%) rotate(270deg)";
       } else {
-        container.style.position = "relative";
-        container.style.transform = "none";
+        container.style.transform = "translate(-50%, -50%)";
       }
     }
     
