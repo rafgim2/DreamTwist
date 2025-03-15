@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Se recomienda usar la siguiente meta para evitar escalado, aunque no garantiza el bloqueo -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>DreamTwist</title>
   <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
@@ -20,6 +21,7 @@
       margin: 0;
       overflow: hidden;
     }
+    /* Contenedor central que se rotará en caso de orientación horizontal */
     #container {
       text-align: center;
       border: 6px solid blue;
@@ -28,6 +30,7 @@
       color: white;
       width: 350px;
       box-sizing: border-box;
+      transition: transform 0.3s ease;
     }
     h1 {
       margin: 0;
@@ -280,15 +283,34 @@
       }
     });
     
-    // Bloqueo de la orientación de la pantalla en modo retrato
+    // Intento de bloqueo de orientación (solo funcionará en navegadores compatibles y con HTTPS)
     if (screen.orientation && screen.orientation.lock) {
       screen.orientation.lock('portrait').catch(function(error) {
         console.log("No se pudo bloquear la orientación:", error);
       });
     }
     
-    // Al cargar la página, se carga el archivo MIDI por defecto
-    window.addEventListener('load', loadDefaultMidi);
+    // Función para forzar que el contenido se vea en vertical
+    function enforcePortrait() {
+      const container = document.getElementById('container');
+      // Si la ventana está en landscape, se rota el contenedor 90 grados para que se vea vertical
+      if(window.innerWidth > window.innerHeight) {
+        container.style.position = "absolute";
+        container.style.top = "50%";
+        container.style.left = "50%";
+        container.style.transform = "translate(-50%, -50%) rotate(90deg)";
+      } else {
+        container.style.position = "relative";
+        container.style.transform = "none";
+      }
+    }
+    
+    window.addEventListener("resize", enforcePortrait);
+    window.addEventListener("orientationchange", enforcePortrait);
+    window.addEventListener("load", function() {
+      enforcePortrait();
+      loadDefaultMidi();
+    });
   </script>
 </body>
 </html>
