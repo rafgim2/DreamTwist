@@ -281,7 +281,6 @@
     // Se procesan los movimientos solo si se ha pulsado "Empezar"
     var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
     var gyroMinInterval = 120;  // Intervalo mínimo entre disparos (ms)
-    var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0
     var lastGyroNoteTime = 0;
     var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
 
@@ -301,7 +300,13 @@
         }
         // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
+          // Mapeo lineal: de 10 (mínimo) a 800 (máximo)
+          const minMag = 10, maxMag = 800;
+          const minVol = 0.2, maxVol = 1.0;
+          // Si el valor es menor que minMag se usa minVol; si es mayor que maxMag se usa maxVol.
+          var clampedMagnitude = Math.max(minMag, Math.min(magnitude, maxMag));
+          var volume = minVol + ((clampedMagnitude - minMag) / (maxMag - minMag)) * (maxVol - minVol);
+          
           if (notesToPlay.length > 0) {
             var groupEnd = currentNoteIndex + 1;
             while (groupEnd < notesToPlay.length &&
