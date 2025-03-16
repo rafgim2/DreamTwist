@@ -116,11 +116,11 @@
       <button id="startButton" class="button">Empezar</button>
       <!-- Selector de sensibilidad -->
       <div id="sensitivityContainer">
-        <label for="sensitivitySelector">Sensibilidad:</label>
+        <label for="sensitivitySelector">Sensibilidad (ms):</label>
         <select id="sensitivitySelector">
-          <option value="100">100 ms</option>
-          <option value="120" selected>120 ms</option>
-          <option value="140">140 ms</option>
+          <option value="100">100</option>
+          <option value="120" selected>120</option>
+          <option value="140">140</option>
         </select>
       </div>
     </div>
@@ -258,20 +258,21 @@
         console.log("Detección detenida manualmente.");
       }
     });
-
+    
     // --- EVENTO PARA CAMBIAR LA SENSIBILIDAD ---
     var sensitivitySelector = document.getElementById('sensitivitySelector');
     sensitivitySelector.addEventListener('change', function() {
       gyroMinInterval = parseInt(this.value);
       console.log("Sensibilidad actualizada a:", gyroMinInterval, "ms");
     });
-
+    
     // --- CONTROL POR GIRO (Devicemotion) ---
     // Se procesan los movimientos solo si se ha pulsado "Empezar"
     var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
     var gyroMinInterval = 120;  // Intervalo mínimo entre disparos (ms)
     var lastGyroNoteTime = 0;
     var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
+    var gyroMax = 200;          // Valor máximo para el mapeo del volumen
 
     function handleMotion(event) {
       if (!started) return;
@@ -284,14 +285,8 @@
         var now = Date.now();
         // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-          // Mapeo no lineal:
-          // Definimos que la magnitud mínima es 10 y la máxima 800.
-          // El volumen mínimo será 0 y el máximo 1.0.
-          const minMag = 10, maxMag = 800;
-          const minVol = 0, maxVol = 1.0;
-          var clampedMagnitude = Math.max(minMag, Math.min(magnitude, maxMag));
-          const normalized = (clampedMagnitude - minMag) / (maxMag - minMag);
-          var volume = minVol + Math.pow(normalized, 2) * (maxVol - minVol);
+          // Cálculo de intensidad según el código inicial:
+          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
           
           if (notesToPlay.length > 0) {
             var groupEnd = currentNoteIndex + 1;
