@@ -300,12 +300,14 @@
         }
         // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-          // Mapeo lineal: de 10 (mínimo) a 800 (máximo)
+          // Mapeo no lineal:
+          // Definimos que la magnitud mínima es 10 y la máxima 800.
+          // El volumen mínimo será 0.2 y el máximo 1.0.
           const minMag = 10, maxMag = 800;
           const minVol = 0.2, maxVol = 1.0;
-          // Si el valor es menor que minMag se usa minVol; si es mayor que maxMag se usa maxVol.
           var clampedMagnitude = Math.max(minMag, Math.min(magnitude, maxMag));
-          var volume = minVol + ((clampedMagnitude - minMag) / (maxMag - minMag)) * (maxVol - minVol);
+          const normalized = (clampedMagnitude - minMag) / (maxMag - minMag);
+          var volume = minVol + Math.pow(normalized, 2) * (maxVol - minVol);
           
           if (notesToPlay.length > 0) {
             var groupEnd = currentNoteIndex + 1;
