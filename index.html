@@ -96,6 +96,12 @@
       border-radius: 5px;
       border: none;
     }
+    /* Estilo para mostrar la velocidad de giro */
+    #rotationDisplay {
+      margin-top: 10px;
+      font-size: 1em;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -116,13 +122,15 @@
       <button id="startButton" class="button">Empezar</button>
       <!-- Selector de sensibilidad -->
       <div id="sensitivityContainer">
-        <label for="sensitivitySelector">Sensibilidad:</label>
+        <label for="sensitivitySelector">Sensibilidad (ms):</label>
         <select id="sensitivitySelector">
-          <option value="100">100 ms</option>
-          <option value="120" selected>120 ms</option>
-          <option value="140">140 ms</option>
+          <option value="100">100</option>
+          <option value="120" selected>120</option>
+          <option value="140">140</option>
         </select>
       </div>
+      <!-- Mostrar velocidad de giro -->
+      <div id="rotationDisplay">Velocidad de giro: 0</div>
     </div>
   </div>
 
@@ -281,7 +289,10 @@
         var alpha = rotation.alpha || 0;
         var beta = rotation.beta || 0;
         var gamma = rotation.gamma || 0;
+        // Calcular la magnitud a partir de los valores alpha y beta
         var magnitude = Math.sqrt(alpha * alpha + beta * beta);
+        // Actualizar el display de velocidad de giro
+        document.getElementById('rotationDisplay').textContent = "Velocidad de giro: " + magnitude.toFixed(2);
         var now = Date.now();
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
           var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
