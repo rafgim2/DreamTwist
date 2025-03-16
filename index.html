@@ -162,6 +162,9 @@
     var noteDuration = 1;
     var defaultMidiNote = 60; // C4
 
+    // Variable para controlar la actualización de la velocidad de giro (cada 1 segundo)
+    var lastRotationDisplayUpdate = 0;
+    
     // Función para convertir número MIDI a nota (ej. "C4")
     function midiNoteToNoteName(midi) {
       var octave = Math.floor(midi / 12) - 1;
@@ -288,12 +291,15 @@
       if (rotation) {
         var alpha = rotation.alpha || 0;
         var beta = rotation.beta || 0;
-        var gamma = rotation.gamma || 0;
-        // Calcular la magnitud a partir de los valores alpha y beta
+        // Calcular la magnitud a partir de alpha y beta
         var magnitude = Math.sqrt(alpha * alpha + beta * beta);
-        // Actualizar el display de velocidad de giro
-        document.getElementById('rotationDisplay').textContent = "Velocidad de giro: " + magnitude.toFixed(2);
         var now = Date.now();
+        // Actualizar la visualización de la velocidad cada 1 segundo
+        if (now - lastRotationDisplayUpdate >= 1000) {
+          document.getElementById('rotationDisplay').textContent = "Velocidad de giro: " + magnitude.toFixed(2);
+          lastRotationDisplayUpdate = now;
+        }
+        // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
           var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
           if (notesToPlay.length > 0) {
@@ -309,7 +315,7 @@
             if (currentNoteIndex >= notesToPlay.length) {
               started = false;
               document.getElementById('startButton').classList.remove('active');
-              document.getElementById('startButton').textContent = "Empezar"; // Cambio de texto al finalizar
+              document.getElementById('startButton').textContent = "Empezar";
               console.log("Reproducción completada.");
             }
           } else {
