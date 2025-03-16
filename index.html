@@ -122,11 +122,11 @@
       <button id="startButton" class="button">Empezar</button>
       <!-- Selector de sensibilidad -->
       <div id="sensitivityContainer">
-        <label for="sensitivitySelector">Sensibilidad (ms):</label>
+        <label for="sensitivitySelector">Sensibilidad:</label>
         <select id="sensitivitySelector">
-          <option value="100">100</option>
-          <option value="120" selected>120</option>
-          <option value="140">140</option>
+          <option value="100">100 ms</option>
+          <option value="120" selected>120 ms</option>
+          <option value="140">140 ms</option>
         </select>
       </div>
       <!-- Mostrar velocidad de giro -->
@@ -162,9 +162,6 @@
     var noteDuration = 2;
     var defaultMidiNote = 60; // C4
 
-    // Variable para controlar la actualización de la velocidad de giro (cada 1 segundo)
-    var lastRotationDisplayUpdate = 0;
-    
     // Función para convertir número MIDI a nota (ej. "C4")
     function midiNoteToNoteName(midi) {
       var octave = Math.floor(midi / 12) - 1;
@@ -281,6 +278,7 @@
     // Se procesan los movimientos solo si se ha pulsado "Empezar"
     var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
     var gyroMinInterval = 120;  // Intervalo mínimo entre disparos (ms)
+    var gyroMax = 200;          // Valor máximo para mapear a volumen 1.0
     var lastGyroNoteTime = 0;
     var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
 
@@ -290,25 +288,14 @@
       if (rotation) {
         var alpha = rotation.alpha || 0;
         var beta = rotation.beta || 0;
-        // Calcular la magnitud a partir de alpha y beta
+        var gamma = rotation.gamma || 0;
+        // Calcular la magnitud a partir de los valores alpha y beta
         var magnitude = Math.sqrt(alpha * alpha + beta * beta);
+        // Actualizar el display de velocidad de giro
+        document.getElementById('rotationDisplay').textContent = "Velocidad de giro: " + magnitude.toFixed(2);
         var now = Date.now();
-        // Actualizar la visualización de la velocidad cada 1 segundo
-        if (now - lastRotationDisplayUpdate >= 1000) {
-          document.getElementById('rotationDisplay').textContent = "Velocidad de giro: " + magnitude.toFixed(2);
-          lastRotationDisplayUpdate = now;
-        }
-        // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-          // Mapeo no lineal:
-          // Definimos que la magnitud mínima es 10 y la máxima 800.
-          // El volumen mínimo será 0.2 y el máximo 1.0.
-          const minMag = 10, maxMag = 800;
-          const minVol = 0, maxVol = 1.0;
-          var clampedMagnitude = Math.max(minMag, Math.min(magnitude, maxMag));
-          const normalized = (clampedMagnitude - minMag) / (maxMag - minMag);
-          var volume = minVol + Math.pow(normalized, 2) * (maxVol - minVol);
-          
+          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
           if (notesToPlay.length > 0) {
             var groupEnd = currentNoteIndex + 1;
             while (groupEnd < notesToPlay.length &&
@@ -322,7 +309,7 @@
             if (currentNoteIndex >= notesToPlay.length) {
               started = false;
               document.getElementById('startButton').classList.remove('active');
-              document.getElementById('startButton').textContent = "Empezar";
+              document.getElementById('startButton').textContent = "Empezar"; // Cambio de texto al finalizar
               console.log("Reproducción completada.");
             }
           } else {
