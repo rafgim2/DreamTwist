@@ -98,12 +98,13 @@
     }
     /* Selector de canciones de muestra */
     #sampleSongsContainer {
-      margin-top: 0px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 5px;
-    }
+  margin-top: 10px;
+  display: flex;
+  flex-direction: row;     /* <--- en vez de column */
+  justify-content: center; /* <--- centra horizontalmente */
+  align-items: center;     /* <--- alinea verticalmente al centro */
+  gap: 5px;
+}
     #sampleSongs {
       padding: 5px;
       font-size: 0.8em;  /* <--- Ajuste a 0.8em */
