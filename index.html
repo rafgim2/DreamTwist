@@ -1,512 +1,379 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <title>DreamEcho - Oyente VIP (iOS Web MIDI Shim)</title>
-
-  <!-- 1) Cargar el shim de Web MIDI API -->
+  <meta charset="UTF-8">
+  <!-- Meta viewport sin restricciones de rotación -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>DreamTwist</title>
+  <!-- Scripts MIDI y soundfont -->
   <script src="https://cdn.jsdelivr.net/npm/webmidiapishim"></script>
-
-  <!-- 2) Tone.js (para síntesis virtual si usas modo “virtual”) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.39/Tone.min.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/webmidi@2"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/stream.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gasman/jasmid@master/midifile.js"></script>
+  <script src="https://unpkg.com/soundfont-player/dist/soundfont-player.js"></script>
   <style>
     body {
-      font-family: sans-serif;
-      padding: 1em;
+      background-color: #DA70D6; /* Morado Orquídea */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    /* Contenedor central */
+    #container {
       text-align: center;
+      border: 6px solid blue;
+      padding: 30px;
+      background-color: #DA70D6;
+      color: white;
+      width: 350px;
+      box-sizing: border-box;
     }
     h1 {
+      margin: 0;
       font-size: 3em;
-      margin-bottom: 0.2em;
     }
-    #recuentoOyentes {
-      font-size: 1.2em;
-      margin-bottom: 0.5em;
-      color: #555;
+    #copyright {
+      margin-top: 5px;
+      font-size: 0.9em;
     }
-    #status {
-      margin-bottom: 1em;
-      font-size: 1.2em;
-      color: #333;
+    /* Estilo para el logo con marco azul */
+    #logo {
+      display: block;
+      margin: 20px auto;
+      max-width: 80%;
+      filter: drop-shadow(0 0 2px blue);
     }
-    button {
-      margin: 0.5em;
-      font-size: 2em;
-      padding: 1em 2em;
-      cursor: pointer;
-    }
-    #midiSelectContainer {
-      margin-top: 1em;
-    }
-    #grabacionControles {
-      margin-top: 2em;
+    #buttons {
+      margin-top: 20px;
       display: flex;
       flex-direction: column;
+      gap: 15px;
       align-items: center;
-      gap: 0.5em;
     }
-    #grabacionesSelect {
+    .button {
+      padding: 10px 20px;
       font-size: 1em;
-      padding: 0.5em;
-      margin: 0.5em;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
-    button.grabando {
-      animation: parpadeo 1s infinite;
-      background-color: red;
+    /* Botón de cargar: azul por defecto */
+    #loadButton {
+      background-color: blue;
       color: white;
     }
-    @keyframes parpadeo {
-      0% { opacity: 1; }
-      50% { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
-    button.reproduciendo {
-      animation: parpadeoVerde 1s infinite;
+    /* Botón de empezar: verde por defecto */
+    #startButton {
       background-color: green;
       color: white;
     }
-    @keyframes parpadeoVerde {
-      0% { opacity: 1; }
-      50% { opacity: 0.3; }
-      100% { opacity: 1; }
+    /* Cuando el botón está activo (iniciado) se pondrá rojo */
+    #startButton.active {
+      background-color: red;
     }
-    /* Chat */
-    #chatLog {
-      width: 90%;
-      max-width: 600px;
-      height: 200px;
-      margin: 1em auto 0.5em;
-      padding: 0.5em;
-      border: 1px solid #ccc;
-      overflow-y: auto;
-      text-align: left;
-      background: #fafafa;
-      border-radius: 0.5em;
+    /* Ocultar input de archivo */
+    #midiFile {
+      display: none;
     }
-    #chatInput {
-      width: 70%;
-      max-width: 500px;
-      padding: 0.5em;
+    /* Estilo para el nombre del archivo */
+    #fileName {
+      margin-top: 0px;
+      font-style: italic;
+      color: white;
+    }
+    /* Estilo para el selector de sensibilidad */
+    #sensitivityContainer {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 5px;
+    }
+    #sensitivitySelector {
+      padding: 5px;
       font-size: 1em;
+      border-radius: 5px;
+      border: none;
     }
-    #sendChatBtn {
-      padding: 0.6em 1em;
-      font-size: 1em;
-      cursor: pointer;
-      margin-left: 0.5em;
-    }
-    .mensaje-propio {
-      color: blue;
-    }
+    /* Selector de canciones de muestra */
+  #sampleSongsContainer {
+  margin-top: 10px;
+  display: flex;            
+  flex-direction: column;   /* uno debajo del otro */
+  align-items: center;      /* centrado horizontal */
+  gap: 5px;                 
+  width: 100%;              
+}
+    #sampleSongs {
+  padding: 5px;
+  font-size: 0.8em;
+  border-radius: 5px;
+  border: none;
+  text-align: center;         /* Centra el texto en navegadores que lo soporten */
+  text-align-last: center;    /* Centra la opción seleccionada */
+  -moz-text-align-last: center; /* Para Firefox */
+}
   </style>
 </head>
 <body>
-  <h1>DreamEcho - Oyente VIP</h1>
-  <p id="recuentoOyentes">Oyentes conectados: --</p>
-  <p id="status">Inicializando Web MIDI…</p>
-
-  <button onclick="modoMIDI()" disabled>🎹 Usar mi piano digital</button>
-  <button onclick="modoVirtual()">🎧 Escuchar con sonido virtual</button>
-
-  <div id="midiSelectContainer"></div>
-
-  <!-- Chat -->
-  <div id="chatControles">
-    <div id="chatLog"></div>
-    <input id="chatInput" placeholder="Escribe tu mensaje…" />
-    <button id="sendChatBtn">🗨️ Enviar</button>
-  </div>
-
-  <!-- Grabaciones y controles -->
-  <div id="grabacionControles">
-    <button id="btnGrabar" onclick="iniciarGrabacion()">⏺️ Grabar</button>
-    <button onclick="detenerGrabacion()">⏹️ Detener</button>
-    <select id="grabacionesSelect">
-      <option value="">-- Elige una grabación --</option>
-    </select>
-    <button id="btnReproducir" onclick="reproducirGrabacion()">▶️ Reproducir</button>
-    <button onclick="borrarGrabacion()">🗑️ Borrar</button>
-    <button onclick="renombrarGrabacion()">✏️ Renombrar</button>
+  <div id="container">
+    <h1>DreamTwist</h1>
+    <div id="copyright">
+      <a href="https://www.youtube.com/@rafgim" target="_blank" style="color: inherit; text-decoration: none;">© By Rafael Gimeno</a>
+    </div>
+    <!-- Logo centrado. Se usa la dirección raw del archivo -->
+    <img id="logo" src="https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Logo%203%20Dreamtwist.png" alt="Logo DreamTwist">
+    <div id="buttons">
+      <label for="midiFile" id="loadButton" class="button">
+        Cargar Archivo MIDI
+        <input type="file" id="midiFile" accept=".mid,.midi,audio/midi,audio/x-midi,application/x-midi">
+      </label>
+      <!-- Selector de canciones de muestra -->
+      <div id="sampleSongsContainer">
+        <label for="sampleSongs">Canciones de muestra:</label>
+        <select id="sampleSongs">
+          <option value="">-- Selecciona una canción --</option>
+          <option value="Bach Minueto.mid">Bach - Minueto.mid</option>
+          <option value="Bach Musette.mid">Bach - Musette.mid</option>
+          <option value="Beethoven Claro de luna.mid">Beethoven - Claro de luna.mid</option>
+          <option value="Beethoven Para Elisa.mid">Beethoven - Para Elisa.mid</option>
+          <option value="Beethoven Patética.mid">Beethoven - Patética.mid</option>
+          <option value="Clementi Sonatina.mid">Clementi - Sonatina.mid</option>          
+          <option value="Mozart Sonata KV 545 2nd Mov.mid">Mozart - Sonata KV 545 2nd Mov.mid</option>
+          <option value="Gustavo Pascual Paquito el chocolatero.mid">Gustavo Pascual - Paquito el chocolatero.mid</option>
+          <option value="Handel & Halvorsen Passacaglia.mid">Handel & Halvorsen - Passacaglia.mid</option>
+          <option value="R.Korsakov El vuelo del moscardón.mid">R.Korsakov - El vuelo del moscardón.mid</option>
+          <option value="Rachmaninoff Concert nº2 Tercer mov.mid">Rachmaninoff - Concert nº2 Tercer mov.mid</option>          
+          <option value="Satie Gymnopedie n1.mid">Satie - Gymnopedie n1.mid</option>
+        </select>
+      </div>
+      <!-- Elemento para mostrar el nombre del archivo -->
+      <div id="fileName"></div>
+      <button id="startButton" class="button">Empezar</button>
+      <!-- Selector de sensibilidad -->
+      <div id="sensitivityContainer">
+        <label for="sensitivitySelector">Sensibilidad:</label>
+        <select id="sensitivitySelector">
+          <option value="100">100 ms</option>
+          <option value="120">120 ms</option>
+          <option value="140" selected>140 ms</option>
+        </select>
+      </div>
+    </div>
   </div>
 
   <script>
-    // ======================
-    // FUNCIONES AUXILIARES
-    // ======================
-    function midiNumberToNoteName(number) {
-      const names = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-      const octave = Math.floor(number / 12) - 1;
-      const noteIndex = number % 12;
-      return names[noteIndex] + octave;
+    // Variable para controlar si la detección de movimiento está activa
+    let started = false;
+    
+    // VARIABLES PARA LAS NOTAS MIDI
+    var notesToPlay = [];
+    var currentNoteIndex = 0;
+    
+    // CONFIGURACIÓN DEL AUDIO
+    var audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    var pianoInstrument = null;
+    if (window.Soundfont && typeof window.Soundfont.instrument === 'function') {
+      window.Soundfont.instrument(audioContext, 'acoustic_grand_piano')
+        .then(function(piano) {
+          pianoInstrument = piano;
+          console.log("Instrumento de piano cargado.");
+        })
+        .catch(function(error) {
+          console.error("Error al cargar el instrumento:", error);
+        });
+    } else {
+      console.error("No se encontró el método instrument en Soundfont.");
     }
-
-    // ======================
-    // ACCESO AL DOM
-    // ======================
-    const statusEl            = document.getElementById("status");
-    const oyentesEl          = document.getElementById("recuentoOyentes");
-    const midiSelectContainer = document.getElementById("midiSelectContainer");
-    const grabacionesSelect   = document.getElementById("grabacionesSelect");
-    const btnGrabar           = document.getElementById("btnGrabar");
-    const btnReproducir       = document.getElementById("btnReproducir");
-    const chatLog             = document.getElementById("chatLog");
-    const chatInput           = document.getElementById("chatInput");
-    const sendChatBtn         = document.getElementById("sendChatBtn");
-    const modoMIDIBtn         = document.querySelector("button[onclick='modoMIDI()']");
-
-    // ======================
-    // VARIABLES DE ESTADO
-    // ======================
-    let output = null, modo = null, synth = null, pedal = false;
-    let baseTime = null, queuePos = 0, queueLatency = 100;
-    const notasActivas    = new Set();
-    const notasSostenidas = new Set();
-    let grabando = false;
-    let grabacionActual = [];
-    let grabaciones = [];
-    let primeraEstadisticaMostrada = false;
-
-    // Nombre de usuario para el chat
-    const username = prompt("¿Cómo quieres que te vean en el chat?", "Oyente") || "Oyente";
-
-    // ======================
-    // WEBSOCKET
-    // ======================
-    const ws = new WebSocket("wss://dreamecho.onrender.com");
-
-    // ======================
-    // CARGA INICIAL DE GRABACIONES
-    // ======================
-    window.onload = () => {
-      const guardadas = localStorage.getItem("dreamEchoGrabaciones");
-      if (guardadas) {
-        grabaciones = JSON.parse(guardadas);
-        actualizarListaGrabaciones();
-      }
-    };
-
-    function guardarEnLocalStorage() {
-      localStorage.setItem("dreamEchoGrabaciones", JSON.stringify(grabaciones));
+    
+    // Duración por defecto de las notas
+    var noteDuration = 1.0;
+    var defaultMidiNote = 60; // C4
+    
+    // Función para convertir número MIDI a nota (ej. "C4")
+    function midiNoteToNoteName(midi) {
+      var octave = Math.floor(midi / 12) - 1;
+      var noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return noteNames[midi % 12] + octave;
     }
-
-    function actualizarListaGrabaciones() {
-      grabacionesSelect.innerHTML = `<option value="">-- Elige una grabación --</option>`;
-      grabaciones.forEach((g, i) => {
-        const opt = document.createElement("option");
-        opt.value = i;
-        opt.text = g.nombre || `Grabación ${i + 1}`;
-        grabacionesSelect.appendChild(opt);
-      });
-    }
-
-    // ======================
-    // PETICIÓN WEB MIDI (punto 3 con shim)
-    // ======================
-    document.addEventListener("DOMContentLoaded", () => {
-      // Dejamos un breve retraso para que el shim se "enganche"
-      setTimeout(() => {
-        if (typeof navigator.requestMIDIAccess !== "function") {
-          statusEl.textContent = "navigator.requestMIDIAccess NO existe. " +
-            "Asegúrate de abrir esta página desde Web MIDI Browser y que sea HTTPS.";
-          return;
-        }
-
-        statusEl.textContent = "requestMIDIAccess detectado, solicitando permisos…";
-
-        navigator.requestMIDIAccess({ sysex: false })
-          .then(onMIDISuccess, onMIDIFailure);
-
-        function onMIDISuccess(midiAccess) {
-          const inputs = Array.from(midiAccess.inputs.values());
-          const outputs = Array.from(midiAccess.outputs.values());
-
-          if (inputs.length === 0 && outputs.length === 0) {
-            statusEl.textContent = "WebMIDI activo, ¡pero no hay puertos MIDI detectados!";
-            return;
-          }
-
-          statusEl.textContent = `WebMIDI OK: ${inputs.length} entrada(s), ${outputs.length} salida(s) detectada(s).`;
-
-          // Llenar un <select> para elegir salida MIDI (opcional)
-          const sel = document.createElement("select");
-          sel.id = "midiOutSelect";
-          const dopt = document.createElement("option");
-          dopt.text = "-- Elige dispositivo MIDI --";
-          dopt.value = "";
-          sel.appendChild(dopt);
-
-          outputs.forEach((o, i) => {
-            const opt = document.createElement("option");
-            opt.value = o.id;
-            opt.text = o.name || `MIDI Dispositivo ${i + 1}`;
-            sel.appendChild(opt);
-          });
-
-          sel.addEventListener("change", e => {
-            const chosen = outputs.find(o => o.id === e.target.value);
-            if (chosen) {
-              output = chosen;
-              statusEl.textContent = `Salida MIDI seleccionada: ${chosen.name}`;
-            } else {
-              statusEl.textContent = "No se ha seleccionado salida MIDI.";
-              output = null;
-            }
-          });
-
-          midiSelectContainer.appendChild(sel);
-
-          // Habilitar el botón de modoMIDI ahora que ya hay salidas
-          modoMIDIBtn.disabled = false;
-        }
-
-        function onMIDIFailure(err) {
-          console.error("No se pudo acceder a Web MIDI:", err);
-          statusEl.textContent = "Error al habilitar WebMIDI: " + err;
-        }
-      }, 50);
-    });
-
-    // ======================
-    // FUNCIONES DE GRABACIÓN
-    // ======================
-    function iniciarGrabacion() {
-      grabando = true;
-      grabacionActual = [];
-      baseTime = null;
-      statusEl.innerText = "Grabando… toca algo desde el piano.";
-      btnGrabar.classList.add("grabando");
-      console.log("[grabación] Iniciada. grabacionActual vacía.");
-    }
-
-    function detenerGrabacion() {
-      grabando = false;
-      btnGrabar.classList.remove("grabando");
-      if (grabacionActual.length) {
-        const nueva = {
-          nombre: `Grabación ${grabaciones.length + 1}`,
-          eventos: grabacionActual
-        };
-        grabaciones.push(nueva);
-        guardarEnLocalStorage();
-        actualizarListaGrabaciones();
-        statusEl.innerText = `${nueva.nombre} guardada.`;
-        console.log(`[grabación] Detenida. ${grabacionActual.length} eventos almacenados.`);
+    
+    // Función para reproducir nota usando soundfont-player.
+    function playPianoNote(volume, midiNote) {
+      if (pianoInstrument) {
+        var noteName = midiNoteToNoteName(midiNote);
+        pianoInstrument.play(noteName, audioContext.currentTime, { gain: volume, duration: noteDuration });
+        console.log("Nota reproducida:", noteName, "volumen:", volume);
       } else {
-        statusEl.innerText = "Nada grabado.";
-        console.log("[grabación] Detenida. grabacionActual sigue vacía.");
+        console.warn("El instrumento aún no se ha cargado.");
       }
     }
-
-    function reproducirGrabacion() {
-      const idxStr = grabacionesSelect.value;
-      if (idxStr === "") return;
-      const idx = parseInt(idxStr, 10);
-      if (isNaN(idx) || idx < 0 || idx >= grabaciones.length) return;
-
-      const eventos = grabaciones[idx].eventos;
-      if (!eventos.length) return;
-
-      // Calcular duración total de la reproducción
-      const startTime = eventos[0].time;
-      const lastTime = eventos[eventos.length - 1].time;
-      const totalMs = lastTime - startTime;
-
-      // Añadir clase para parpadeo verde
-      btnReproducir.classList.add("reproduciendo");
-
-      // Planificar quitar clase al finalizar (con 200ms de buffer)
-      setTimeout(() => {
-        btnReproducir.classList.remove("reproduciendo");
-      }, totalMs + 200);
-
-      // Enviar eventos MIDI simulando latencia/cola
-      eventos.forEach(ev => {
-        const delay = Math.max(0, ev.time - startTime);
-        setTimeout(() => {
-          ws.dispatchEvent(new MessageEvent("message", {
-            data: JSON.stringify({ type: "midi", data: ev.data, time: 0 })
-          }));
-        }, delay);
-      });
-
-      statusEl.innerText = `Reproduciendo: ${grabaciones[idx].nombre}`;
-      console.log(`[reproducción] Iniciada "${grabaciones[idx].nombre}" con ${eventos.length} eventos.`);
-    }
-
-    function borrarGrabacion() {
-      const idxStr = grabacionesSelect.value;
-      if (idxStr === "") return;
-      const idx = parseInt(idxStr, 10);
-      if (isNaN(idx) || idx < 0 || idx >= grabaciones.length) return;
-
-      if (!confirm(`¿Borrar "${grabaciones[idx].nombre}"?`)) return;
-
-      console.log(`[grabación] Borrando índice ${idx}: "${grabaciones[idx].nombre}".`);
-      grabaciones.splice(idx, 1);
-      guardarEnLocalStorage();
-      actualizarListaGrabaciones();
-      statusEl.innerText = "Grabación borrada.";
-    }
-
-    function renombrarGrabacion() {
-      const idxStr = grabacionesSelect.value;
-      if (idxStr === "") return;
-      const idx = parseInt(idxStr, 10);
-      if (isNaN(idx) || idx < 0 || idx >= grabaciones.length) return;
-
-      const nuevo = prompt("Nuevo nombre:", grabaciones[idx].nombre);
-      if (nuevo) {
-        console.log(`[grabación] Renombrada índice ${idx} a "${nuevo}".`);
-        grabaciones[idx].nombre = nuevo;
-        guardarEnLocalStorage();
-        actualizarListaGrabaciones();
-        statusEl.innerText = `Grabación renombrada a "${nuevo}".`;
-      }
-    }
-
-    // ======================
-    // CHAT Y MIDI ENTRANTES
-    // ======================
-    function appendChat(user, text) {
-      const msg = document.createElement("div");
-      const time = new Date().toLocaleTimeString();
-      if (user === username) {
-        msg.classList.add("mensaje-propio");
-      }
-      msg.innerHTML = `<small>[${time}]</small> <strong>${user}:</strong> ${text}`;
-      chatLog.appendChild(msg);
-      chatLog.scrollTop = chatLog.scrollHeight;
-    }
-
-    function sendChat() {
-      const text = chatInput.value.trim();
-      if (!text || ws.readyState !== WebSocket.OPEN) return;
-      ws.send(JSON.stringify({ type: "chat", user: username, text }));
-      chatInput.value = "";
-    }
-
-    sendChatBtn.addEventListener("click", sendChat);
-    chatInput.addEventListener("keydown", e => {
-      if (e.key === "Enter") sendChat();
+    
+    // --- CARGA DEL ARCHIVO MIDI ---
+    document.getElementById('midiFile').addEventListener('change', function(e) {
+      // Actualizar nombre del archivo
+      document.getElementById('fileName').textContent = e.target.files[0].name;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var midi = new MidiFile(e.target.result);
+          extractNotesFromMidi(midi);
+        } catch (error) {
+          console.error("Error al parsear el archivo MIDI:", error);
+        }
+      };
+      reader.readAsBinaryString(e.target.files[0]);
     });
-
-    ws.onopen = () => {
-      statusEl.textContent = "Conectado al servidor, esperando tu elección…";
-    };
-
-    ws.onmessage = async event => {
-      const raw = typeof event.data === "string" ? event.data : await event.data.text();
-      const msg = JSON.parse(raw);
-
-      if (msg.type === "stats") {
-        oyentesEl.textContent = `Oyentes conectados: ${msg.clients}`;
-        if (!primeraEstadisticaMostrada) {
-          queuePos = msg.clients;
-          queueLatency = 50 + 5 * Math.sqrt(queuePos);
-          statusEl.textContent =
-            `Posición en cola: ${queuePos} → latencia = ${Math.round(queueLatency)} ms`;
-          primeraEstadisticaMostrada = true;
-        }
-        return;
-      }
-
-      if (msg.type === "chat") {
-        appendChat(msg.user, msg.text);
-        return;
-      }
-
-      if (msg.type === "midi") {
-        const [st, note, velocity] = msg.data;
-        const command = st & 0xf0;
-        const eventTime = msg.time;
-        if (!baseTime) baseTime = performance.now() - eventTime;
-
-        // ←←← GRABAR cada evento MIDI AL LLEGAR ←←←
-        if (grabando) {
-          grabacionActual.push({
-            data: msg.data,
-            time: eventTime
-          });
-          console.log(`[grabación] Evento push: data=${msg.data}, time=${eventTime}`);
-        }
-        // ←←← FIN DE GRABAR ←←←
-
-        const extra = modo === "virtual" ? queueLatency : 0;
-        const delay = Math.max(
-          0,
-          eventTime + baseTime - performance.now() + extra
-        );
-        const toneTime = "+" + (delay / 1000);
-
-        if (modo === "midi" && output) {
-          return setTimeout(() =>
-            output.send(new Uint8Array(msg.data)), delay
-          );
-        }
-
-        if (modo === "virtual" && synth) {
-          const freq = Tone.Frequency(note, "midi").toFrequency();
-          if (command === 0x90 && velocity > 0) {
-            synth.triggerAttack(freq, undefined, velocity / 127);
-            notasActivas.add(freq);
-            notasSostenidas.delete(freq);
-          } else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
-            if (pedal) {
-              notasActivas.delete(freq);
-              notasSostenidas.add(freq);
-            } else {
-              synth.triggerRelease(freq, "+0.2");
-              notasActivas.delete(freq);
-              notasSostenidas.delete(freq);
+    
+    // Función para cargar un MIDI desde una URL
+    function loadMidiFromUrl(url, fileName) {
+      fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            try {
+              var midi = new MidiFile(e.target.result);
+              extractNotesFromMidi(midi);
+            } catch (error) {
+              console.error("Error al parsear el archivo MIDI:", error);
             }
-          } else if (st === 176 && note === 64) {
-            pedal = velocity >= 64;
-            if (!pedal) {
-              notasSostenidas.forEach(f => {
-                if (!notasActivas.has(f)) {
-                  synth.triggerRelease(f, "+0.2");
-                  notasSostenidas.delete(f);
-                }
-              });
-            }
+          };
+          reader.readAsBinaryString(new Blob([data]));
+          // Actualizar nombre del archivo
+          document.getElementById('fileName').textContent = fileName;
+        })
+        .catch(error => console.error("Error al cargar el MIDI:", error));
+    }
+    
+    // Cargar MIDI por defecto
+    function loadDefaultMidi() {
+      // Cambia aquí la URL raw y el nombre si quieres otro MIDI por defecto
+      const defaultMidiUrl = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/Beethoven Para Elisa.mid";
+      const defaultFileName = "Beethoven Para Elisa.mid";
+      loadMidiFromUrl(defaultMidiUrl, defaultFileName);
+    }
+    
+    // Extraer notas del archivo MIDI
+    function extractNotesFromMidi(midi) {
+      notesToPlay = [];
+      currentNoteIndex = 0;
+      var absoluteTime = 0;
+      midi.tracks.forEach(track => {
+        absoluteTime = 0;
+        track.forEach(event => {
+          if (event.deltaTime) {
+            absoluteTime += event.deltaTime;
           }
+          if (event.subtype === 'noteOn') {
+            notesToPlay.push({
+              noteNumber: event.noteNumber,
+              velocity: event.velocity,
+              channel: event.channel,
+              time: absoluteTime
+            });
+          }
+        });
+      });
+      notesToPlay.sort((a, b) => a.time - b.time);
+      console.log("Notas MIDI extraídas:", notesToPlay);
+    }
+    
+    // --- EVENTO PARA EL SELECTOR DE CANCIONES DE MUESTRA ---
+    document.getElementById('sampleSongs').addEventListener('change', function() {
+      if (this.value) {
+        const fileName = this.value;
+        // Asegúrate de que en tu repositorio se llamen igual, con espacios si es el caso
+        const url = "https://raw.githubusercontent.com/rafgim2/DreamTwist/main/" + encodeURIComponent(fileName);
+        loadMidiFromUrl(url, fileName);
+      }
+    });
+    
+    // --- EVENTO PARA EL BOTÓN "EMPEZAR" ---
+    document.getElementById('startButton').addEventListener('click', function() {
+      if (!started) {
+        // Reiniciar la reproducción al pulsar "Empezar"
+        currentNoteIndex = 0;
+        started = true;
+        this.classList.add('active');
+        this.textContent = "Parar";
+        console.log("Detección iniciada.");
+      } else {
+        started = false;
+        this.classList.remove('active');
+        this.textContent = "Empezar";
+        console.log("Detección detenida manualmente.");
+      }
+    });
+    
+    // --- EVENTO PARA CAMBIAR LA SENSIBILIDAD ---
+    var sensitivitySelector = document.getElementById('sensitivitySelector');
+    sensitivitySelector.addEventListener('change', function() {
+      gyroMinInterval = parseInt(this.value);
+      console.log("Sensibilidad actualizada a:", gyroMinInterval, "ms");
+    });
+    
+    // --- CONTROL POR GIRO (Devicemotion) ---
+    var gyroThreshold = 300;    // Umbral en grados/segundo para detectar movimiento
+    var gyroMinInterval = 120;  // Intervalo mínimo entre disparos (ms)
+    var lastGyroNoteTime = 0;
+    var groupThreshold = 0.001; // Tolerancia para agrupar eventos "noteOn"
+    var gyroMax = 200;          // Valor máximo para el mapeo del volumen
+
+    function handleMotion(event) {
+      if (!started) return;
+      var rotation = event.rotationRate;
+      if (rotation) {
+        var alpha = rotation.alpha || 0;
+        var beta = rotation.beta || 0;
+        // Calcular la magnitud a partir de alpha y beta
+        var magnitude = Math.sqrt(alpha * alpha + beta * beta);
+        var now = Date.now();
+        // Procesar el evento si se supera el umbral y se respeta el intervalo
+        if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
+          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
+          
+          if (notesToPlay.length > 0) {
+            var groupEnd = currentNoteIndex + 1;
+            while (groupEnd < notesToPlay.length &&
+                   Math.abs(notesToPlay[groupEnd].time - notesToPlay[currentNoteIndex].time) < groupThreshold) {
+              groupEnd++;
+            }
+            for (var i = currentNoteIndex; i < groupEnd; i++) {
+              playPianoNote(volume, notesToPlay[i].noteNumber);
+            }
+            currentNoteIndex = groupEnd;
+            if (currentNoteIndex >= notesToPlay.length) {
+              started = false;
+              document.getElementById('startButton').classList.remove('active');
+              document.getElementById('startButton').textContent = "Empezar";
+              console.log("Reproducción completada.");
+            }
+          } else {
+            playPianoNote(volume, defaultMidiNote);
+          }
+          lastGyroNoteTime = now;
         }
       }
-    };
-
-    // ======================
-    // MODO MIDI Y VIRTUAL
-    // ======================
-    function modoMIDI() {
-      modo = "midi";
-      statusEl.innerText = "Modo MIDI: selecciona tu dispositivo…";
-      // El <select> ya fue creado en onMIDISuccess
-      // (no hay que volver a pedir acceso)
     }
-
-    async function modoVirtual() {
-      modo = "virtual";
-      statusEl.innerText = "Cargando piano virtual…";
-      await Tone.start();
-      synth = new Tone.Sampler({
-        urls: {
-          A0:  "A0.mp3", C1:  "C1.mp3", "D#1":"Ds1.mp3","F#1":"Fs1.mp3",
-          A1:  "A1.mp3", C2:  "C2.mp3","D#2":"Ds2.mp3","F#2":"Fs2.mp3",
-          A2:  "A2.mp3", C3:  "C3.mp3","D#3":"Ds3.mp3","F#3":"Fs3.mp3",
-          A3:  "A3.mp3", C4:  "C4.mp3","D#4":"Ds4.mp3","F#4":"Fs4.mp3",
-          A4:  "A4.mp3", C5:  "C5.mp3","D#5":"Ds5.mp3","F#5":"Fs5.mp3",
-          A5:  "A5.mp3", C6:  "C6.mp3","D#6":"Ds6.mp3","F#6":"Fs6.mp3",
-          A7:  "A7.mp3", C8:  "C8.mp3"
-        },
-        baseUrl: "https://tonejs.github.io/audio/salamander/",
-        release: 0.4,
-        onload: () => {
-          statusEl.innerText =
-            `Modo virtual listo. Posición en cola: ${queuePos} → latencia ≃ ${Math.round(queueLatency)} ms`;
-        }
-      }).toDestination();
+    
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', handleMotion);
+    } else {
+      console.log("DeviceMotionEvent no es soportado en este dispositivo.");
     }
+    
+    // Reanudar AudioContext tras interacción del usuario
+    document.addEventListener('click', function() {
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log("AudioContext reanudado");
+        });
+      }
+    });
+    
+    // Al cargar la página se carga el MIDI por defecto
+    window.addEventListener('load', loadDefaultMidi);
   </script>
 </body>
 </html>
