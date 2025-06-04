@@ -331,7 +331,7 @@
         var now = Date.now();
         // Procesar el evento si se supera el umbral y se respeta el intervalo
         if (magnitude > gyroThreshold && (now - lastGyroNoteTime) > gyroMinInterval) {
-          var volume = Math.min(1.0, (magnitude / gyroMax) * 0.35);
+          var volume = 1.0;
           
           if (notesToPlay.length > 0) {
             var groupEnd = currentNoteIndex + 1;
